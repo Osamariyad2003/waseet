@@ -95,6 +95,42 @@ class PayPalClient:
         logger.info("paypal.token_acquired", expires_in=int(expires_in))
         return self._token
 
+    async def get_client_token(self) -> str:
+        """Browser-safe token for the JS SDK v6.
+
+        Same token endpoint, `response_type=client_token`. Deliberately not
+        cached: it is short-lived by design, and the whole point is that the
+        browser gets something disposable instead of a credential.
+        """
+        if not self._settings.paypal_configured:
+            raise PayPalError(
+                "PayPal credentials are not configured; set PAYPAL_CLIENT_ID and "
+                "PAYPAL_CLIENT_SECRET in the environment"
+            )
+        try:
+            response = await self._http.post(
+                "/v1/oauth2/token",
+                auth=(
+                    self._settings.paypal_client_id,
+                    self._settings.paypal_client_secret.get_secret_value(),
+                ),
+                data={"grant_type": "client_credentials", "response_type": "client_token"},
+                headers={"Accept": "application/json"},
+            )
+        except httpx.HTTPError as exc:
+            raise PayPalError(f"could not reach PayPal for a client token: {exc!s}") from exc
+
+        if response.status_code != httpx.codes.OK:
+            raise PayPalError(
+                f"PayPal would not issue a client token (HTTP {response.status_code})"
+            )
+
+        token = response.json().get("access_token")
+        if not token:
+            raise PayPalError("PayPal returned no client token")
+        logger.info("paypal.client_token_issued")
+        return token
+
     # --- orders -----------------------------------------------------------
 
     async def create_order(

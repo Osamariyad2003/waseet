@@ -33,3 +33,6 @@ uploads/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Next.js build output lives under frontend/
+frontend/.next/

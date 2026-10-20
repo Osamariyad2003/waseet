@@ -8,16 +8,30 @@ from fastapi import APIRouter, status
 
 from app.api.schemas.deals import (
     CaptureOrderRequest,
+    ClientTokenResponse,
     CreateOrderResponse,
     DealResponse,
 )
-from app.dependencies import CurrentUserDep, DealServiceDep
+from app.dependencies import CurrentUserDep, DealServiceDep, PayPalDep
 
-router = APIRouter(prefix="/deals", tags=["funding"])
+router = APIRouter(tags=["funding"])
+
+
+@router.get("/paypal/client-token", response_model=ClientTokenResponse)
+async def get_client_token(user: CurrentUserDep, paypal: PayPalDep) -> ClientTokenResponse:
+    """Mint a browser-safe token for the PayPal JS SDK v6.
+
+    Authenticated, so an anonymous caller cannot burn through tokens on the
+    platform's credentials. The client secret stays on the server.
+    """
+    token = await paypal.get_client_token()
+    return ClientTokenResponse(client_token=token)
 
 
 @router.post(
-    "/{deal_id}/order", response_model=CreateOrderResponse, status_code=status.HTTP_201_CREATED
+    "/deals/{deal_id}/order",
+    response_model=CreateOrderResponse,
+    status_code=status.HTTP_201_CREATED,
 )
 async def create_order(
     deal_id: uuid.UUID, user: CurrentUserDep, service: DealServiceDep
@@ -27,7 +41,7 @@ async def create_order(
     return CreateOrderResponse(paypal_order_id=created.order_id, approve_url=created.approve_url)
 
 
-@router.post("/{deal_id}/capture", response_model=DealResponse)
+@router.post("/deals/{deal_id}/capture", response_model=DealResponse)
 async def capture_order(
     deal_id: uuid.UUID,
     payload: CaptureOrderRequest,

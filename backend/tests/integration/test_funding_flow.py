@@ -293,3 +293,23 @@ class TestTimelineAndListing:
             "/deals/11111111-1111-1111-1111-111111111111", headers=auth(tokens["buyer"])
         )
         assert response.status_code == 404
+
+
+class TestClientToken:
+    """PayPal JS SDK v6 authenticates the browser with a short-lived client
+    token, so the client secret never reaches the browser."""
+
+    async def test_an_authenticated_user_gets_a_browser_safe_token(self, client, tokens):
+        response = await client.get("/paypal/client-token", headers=auth(tokens["buyer"]))
+        assert response.status_code == 200
+        assert response.json()["client_token"] == "fake-browser-safe-client-token"
+
+    async def test_an_anonymous_caller_cannot_mint_tokens(self, client):
+        """Otherwise anyone could burn through the platform's credentials."""
+        response = await client.get("/paypal/client-token")
+        assert response.status_code == 401
+
+    async def test_a_paypal_failure_surfaces_as_a_gateway_error(self, client, tokens, fake_paypal):
+        fake_paypal.fail_next_client_token = True
+        response = await client.get("/paypal/client-token", headers=auth(tokens["buyer"]))
+        assert response.status_code == 502

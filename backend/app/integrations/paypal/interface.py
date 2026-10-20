@@ -122,6 +122,15 @@ class PayPalGateway(Protocol):
         """Fetch (or reuse a cached) OAuth2 client-credentials token."""
         ...
 
+    async def get_client_token(self) -> str:
+        """Mint a browser-safe token for the PayPal JS SDK v6.
+
+        v6 authenticates the browser SDK with a short-lived client token
+        rather than exposing the client id alone. This token is safe to send
+        to the browser; the client secret never leaves the server.
+        """
+        ...
+
     async def create_order(
         self,
         *,

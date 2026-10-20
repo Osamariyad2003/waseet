@@ -181,6 +181,12 @@ class CreateOrderResponse(BaseModel):
     approve_url: str | None = None
 
 
+class ClientTokenResponse(BaseModel):
+    """A browser-safe token for the PayPal JS SDK v6."""
+
+    client_token: str
+
+
 class CaptureOrderRequest(BaseModel):
     """The order id the client approved.
 

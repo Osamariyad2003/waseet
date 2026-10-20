@@ -52,6 +52,7 @@ class FakePayPalGateway:
     fail_next_payout: bool = False
     fail_next_refund: bool = False
     fail_next_capture: bool = False
+    fail_next_client_token: bool = False
     capture_status: str = "COMPLETED"
     _counter: int = 0
 
@@ -61,6 +62,12 @@ class FakePayPalGateway:
 
     async def get_access_token(self) -> AccessToken:
         return AccessToken(token="fake-token", expires_at_epoch=time.time() + 3600)
+
+    async def get_client_token(self) -> str:
+        if self.fail_next_client_token:
+            self.fail_next_client_token = False
+            raise PayPalError("PayPal would not issue a client token (simulated failure)")
+        return "fake-browser-safe-client-token"
 
     async def create_order(
         self,
