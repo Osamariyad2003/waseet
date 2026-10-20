@@ -34,13 +34,13 @@ from app.domain.enums import (
     PolicyOutcome,
     SettlementAction,
     TransitionEvent,
+    Verdict,
 )
 from app.domain.errors import DealNotFound, NotAuthorizedForDeal, TransitionGuardFailed
 from app.domain.state_machine import next_state
 from app.integrations.ai.interface import (
     AIGateway,
-    DealContext,
-    DeliverableContext,
+    CriterionJudgment,
     VerificationJudgment,
 )
 from app.models.deal import Deal
@@ -49,6 +49,7 @@ from app.repositories.audit_repo import AuditRepository
 from app.repositories.deal_repo import DealRepository
 from app.repositories.deliverable_repo import DeliverableRepository
 from app.repositories.verification_repo import VerificationRepository
+from app.services.agent_toolbox import AgentToolbox
 from app.services.settlement_service import SettlementService, deal_transition_context
 
 logger = structlog.get_logger(__name__)
@@ -60,6 +61,62 @@ class VerificationResult:
     report: VerificationReport
     decision: PolicyDecision
     released: bool
+
+
+def reconcile_judgment(
+    judgment: VerificationJudgment, confirmed: tuple[tuple[str, str], ...]
+) -> VerificationJudgment:
+    """Reconcile a verifier's judgment against the confirmed checklist.
+
+    The gateway's own parsing does something similar, but a gateway is an
+    interchangeable, externally-influenced component — the guarantee has to
+    hold at the boundary where the judgment is trusted, not inside the thing
+    being trusted. So this runs on every judgment, from any implementation:
+
+      * a finding about a criterion id the parties never confirmed is
+        discarded — a model cannot manufacture coverage by answering about
+        something that does not exist;
+      * a confirmed criterion nobody reported on is recorded as failed,
+        because absence of evidence is not evidence of a pass;
+      * an overall PASS that contradicts its own findings is downgraded to
+        FAIL, so the stored report cannot say "approved" while listing an
+        unmet criterion.
+
+    Pure, so the whole table of adversarial shapes is unit-testable.
+    """
+    if not confirmed:
+        return VerificationJudgment.inconclusive(
+            "the deal has no confirmed acceptance criteria to judge against"
+        )
+    if judgment.verdict is Verdict.INCONCLUSIVE:
+        return judgment
+
+    texts = dict(confirmed)
+    known = [item for item in judgment.per_criterion if item.criterion_id in texts]
+
+    reported = {item.criterion_id for item in known}
+    unreported = tuple(
+        CriterionJudgment(
+            criterion_id=criterion_id,
+            text=text,
+            passed=False,
+            note="the verifier did not report on this criterion",
+        )
+        for criterion_id, text in confirmed
+        if criterion_id not in reported
+    )
+
+    per_criterion = tuple(known) + unreported
+    verdict = judgment.verdict
+    if verdict is Verdict.PASS and any(not item.passed for item in per_criterion):
+        verdict = Verdict.FAIL
+
+    return VerificationJudgment(
+        verdict=verdict,
+        confidence=judgment.confidence,
+        reasoning=judgment.reasoning,
+        per_criterion=per_criterion,
+    )
 
 
 class VerificationService:
@@ -143,19 +200,32 @@ class VerificationService:
         await self._session.commit()
         logger.info("verification.started", deal_id=str(deal.id), criteria=len(criteria))
 
-        # 2-3. Run the agent. It never raises: an unusable result arrives as
+        # 2-3. Run the agent. Its whole view of the deal comes through the
+        # read-only toolbox: three reads, each returning only the fields the
+        # judgment needs. It never raises — an unusable result arrives as
         # INCONCLUSIVE, which the policy disputes.
-        judgment = await self._ai.verify_deliverable(
-            deal=DealContext(
-                description=deal.description, amount=deal.amount, currency=deal.currency
-            ),
-            criteria=tuple((str(criterion.id), criterion.text) for criterion in criteria),
-            deliverable=DeliverableContext(
-                type=deliverable.type.value,
-                content_ref=deliverable.content_ref,
-                note=deliverable.note,
-            ),
+        toolbox = AgentToolbox(
+            deal_id=deal.id,
+            deal_repo=self._deals,
+            deliverable_repo=self._deliverables,
         )
+        agent_deliverable = await toolbox.read_deliverable()
+        if agent_deliverable is None:  # pragma: no cover — guarded above
+            raise TransitionGuardFailed("there is no deliverable to verify")
+
+        confirmed = await toolbox.read_criteria()
+        raw_judgment = await self._ai.verify_deliverable(
+            deal=await toolbox.read_deal(),
+            criteria=confirmed,
+            deliverable=agent_deliverable,
+        )
+
+        # Reconcile the judgment against the confirmed checklist before it
+        # is allowed anywhere near the policy. This is the trust boundary:
+        # whatever the gateway returns, only findings about criteria both
+        # parties confirmed count, and a criterion nobody reported on is
+        # not an approved one.
+        judgment = reconcile_judgment(raw_judgment, confirmed)
 
         # Everything from here commits as one transaction: the report, the
         # policy's state change, the money movement and the audit entries.

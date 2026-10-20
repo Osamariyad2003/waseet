@@ -36,6 +36,7 @@ from app.domain.entities import (
 )
 from app.domain.enums import Actor, DealState, SettlementAction, TransitionEvent
 from app.domain.errors import PayPalError, SettlementError
+from app.domain.spend_mandate import SpendMandate
 from app.domain.state_machine import TransitionContext, is_already_applied, next_state
 from app.integrations.paypal.interface import PayPalGateway
 from app.models.deal import Deal
@@ -136,21 +137,41 @@ class SettlementService:
 
     # --- money movement ---------------------------------------------------
 
-    async def _move_money(self, deal: Deal, breakdown: SettlementBreakdown) -> str | None:
-        """Perform the PayPal calls for this breakdown.
+    def _mint_mandate(self, deal: Deal) -> SpendMandate:
+        """Mint the authority for this settlement from the deal aggregate.
 
-        The spend mandate lives here: the amount comes from the deal's own
-        captured value and the recipient from the deal's own seller. Nothing
-        upstream — not an agent, not a request body — can redirect either.
+        Everything in it comes from persisted deal state: the captured
+        amount, the deal's currency, the designated seller, the capture to
+        refund against. Nothing here is read from a request body or a model
+        response, which is what makes the mandate meaningful.
         """
         if deal.paypal_capture_id is None:
             raise SettlementError("the deal has no captured payment to settle")
+        return SpendMandate(
+            deal_id=deal.id,
+            captured_amount=deal.amount,
+            currency=deal.currency,
+            seller_recipient=self._receiver_email(deal),
+            buyer_refund_capture_id=deal.paypal_capture_id,
+        )
+
+    async def _move_money(self, deal: Deal, breakdown: SettlementBreakdown) -> str | None:
+        """Perform the PayPal calls for this breakdown.
+
+        Every outbound payment is checked against the mandate immediately
+        before the call, so the amount is always the deal's own and the
+        recipient is always the deal's own seller. Nothing upstream — not an
+        agent, not a deliverable, not a request body — can redirect either.
+        """
+        mandate = self._mint_mandate(deal)
 
         if breakdown.action is SettlementAction.RELEASE:
             return await self._payout(
                 deal,
+                mandate,
                 amount=breakdown.to_seller,
                 currency=breakdown.currency,
+                action=breakdown.action,
                 batch_id=idempotency.release_batch_id(deal.id),
                 note=f"Waseet escrow release for deal {deal.id}",
             )
@@ -158,8 +179,10 @@ class SettlementService:
         if breakdown.action is SettlementAction.REFUND:
             return await self._refund(
                 deal,
+                mandate,
                 amount=breakdown.to_buyer,
                 currency=breakdown.currency,
+                action=breakdown.action,
                 request_id=idempotency.refund_request_id(deal.id),
                 note="Waseet escrow refund",
             )
@@ -171,28 +194,45 @@ class SettlementService:
         # idempotency keys and PayPal will not duplicate the payout.
         payout_reference = await self._payout(
             deal,
+            mandate,
             amount=breakdown.to_seller,
             currency=breakdown.currency,
+            action=breakdown.action,
             batch_id=idempotency.split_batch_id(deal.id),
             note=f"Waseet escrow split release for deal {deal.id}",
         )
         await self._refund(
             deal,
+            mandate,
             amount=breakdown.to_buyer,
             currency=breakdown.currency,
+            action=breakdown.action,
             request_id=idempotency.split_refund_request_id(deal.id),
             note="Waseet escrow split refund",
         )
         return payout_reference
 
     async def _payout(
-        self, deal: Deal, *, amount: Decimal, currency: str, batch_id: str, note: str
+        self,
+        deal: Deal,
+        mandate: SpendMandate,
+        *,
+        amount: Decimal,
+        currency: str,
+        action: SettlementAction,
+        batch_id: str,
+        note: str,
     ) -> str:
-        receiver = self._receiver_email(deal)
+        receiver = mandate.seller_recipient
         if amount <= 0:
             # A 100% fee leaves nothing to send; there is no payout to make.
             logger.info("settlement.payout_skipped", deal_id=str(deal.id), reason="zero amount")
             return batch_id
+
+        # The last gate before money leaves the platform.
+        mandate.authorize_payout(
+            recipient=receiver, amount=amount, currency=currency, action=action
+        )
         try:
             result = await self._paypal.create_payout(
                 receiver_email=receiver,
@@ -208,13 +248,26 @@ class SettlementService:
         return result.payout_batch_id
 
     async def _refund(
-        self, deal: Deal, *, amount: Decimal, currency: str, request_id: str, note: str
+        self,
+        deal: Deal,
+        mandate: SpendMandate,
+        *,
+        amount: Decimal,
+        currency: str,
+        action: SettlementAction,
+        request_id: str,
+        note: str,
     ) -> str:
         if amount <= 0:
             return request_id
+
+        capture_id = mandate.buyer_refund_capture_id
+        mandate.authorize_refund(
+            capture_id=capture_id, amount=amount, currency=currency, action=action
+        )
         try:
             result = await self._paypal.refund_capture(
-                capture_id=deal.paypal_capture_id or "",
+                capture_id=capture_id,
                 amount=amount,
                 currency=currency,
                 request_id=request_id,

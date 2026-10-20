@@ -27,8 +27,6 @@ from app.domain.enums import (
 from app.domain.errors import DealNotFound, NotAuthorizedForDeal, TransitionGuardFailed
 from app.integrations.ai.interface import (
     AIGateway,
-    DealContext,
-    DeliverableContext,
     MediationRecommendation,
     VerificationJudgment,
 )
@@ -38,6 +36,7 @@ from app.repositories.audit_repo import AuditRepository
 from app.repositories.deal_repo import DealRepository
 from app.repositories.deliverable_repo import DeliverableRepository
 from app.repositories.verification_repo import VerificationRepository
+from app.services.agent_toolbox import AgentToolbox
 from app.services.settlement_service import SettlementOutcome, SettlementService
 
 logger = structlog.get_logger(__name__)
@@ -88,24 +87,20 @@ class DisputeService:
                 f"is {deal.state.value}"
             )
 
-        criteria = await self._deals.list_criteria(deal.id)
-        deliverable = await self._deliverables.get_latest(deal.id)
         report = await self._verifications.get_latest_ai(deal.id)
 
+        # The mediator reads through the same read-only toolbox as the
+        # verifier: the same three reads, the same narrow fields, and no
+        # capability to act on what it reads.
+        toolbox = AgentToolbox(
+            deal_id=deal.id,
+            deal_repo=self._deals,
+            deliverable_repo=self._deliverables,
+        )
         recommendation = await self._ai.mediate_dispute(
-            deal=DealContext(
-                description=deal.description, amount=deal.amount, currency=deal.currency
-            ),
-            criteria=tuple((str(criterion.id), criterion.text) for criterion in criteria),
-            deliverable=(
-                DeliverableContext(
-                    type=deliverable.type.value,
-                    content_ref=deliverable.content_ref,
-                    note=deliverable.note,
-                )
-                if deliverable
-                else None
-            ),
+            deal=await toolbox.read_deal(),
+            criteria=await toolbox.read_criteria(),
+            deliverable=await toolbox.read_deliverable(),
             verification=_judgment_from(report),
         )
 
