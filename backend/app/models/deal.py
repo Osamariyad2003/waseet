@@ -46,8 +46,11 @@ class Deal(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
-    buyer = relationship("User", foreign_keys=[buyer_id], lazy="joined")
-    seller = relationship("User", foreign_keys=[seller_id], lazy="joined")
+    # selectin, not joined: a joined eager load adds an outer join, and
+    # Postgres refuses SELECT ... FOR UPDATE against the nullable side of
+    # one — which every money-moving path depends on.
+    buyer = relationship("User", foreign_keys=[buyer_id], lazy="selectin")
+    seller = relationship("User", foreign_keys=[seller_id], lazy="selectin")
     criteria = relationship(
         "AcceptanceCriterion",
         back_populates="deal",

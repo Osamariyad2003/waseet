@@ -8,7 +8,7 @@ from decimal import Decimal
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import SecretStr, field_validator
+from pydantic import SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -66,6 +66,25 @@ class Settings(BaseSettings):
         if not (Decimal("0") <= value <= Decimal("100")):
             raise ValueError("platform_fee_percent must be between 0 and 100")
         return value
+
+    @model_validator(mode="after")
+    def _check_production_secrets(self) -> Settings:
+        """Refuse to boot a production instance on dev defaults."""
+        if not self.is_production:
+            return self
+        secret = self.jwt_secret.get_secret_value()
+        # The more specific complaint first: the dev default is also short,
+        # and "you forgot to set it" is more useful than "it is too short".
+        if secret == "dev-only-insecure-secret":
+            raise ValueError("JWT_SECRET is still the development default")
+        if len(secret.encode("utf-8")) < 32:
+            raise ValueError(
+                "JWT_SECRET must be at least 32 bytes in production (RFC 7518 minimum for HS256)"
+            )
+        if "sandbox" not in self.paypal_base_url:
+            # This prototype is sandbox-only by design.
+            raise ValueError("PAYPAL_BASE_URL must point at the PayPal sandbox")
+        return self
 
     @property
     def cors_origin_list(self) -> list[str]:
