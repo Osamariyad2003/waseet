@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     ai_timeout_seconds: float = 45.0
 
     # --- Database ---------------------------------------------------------
-    database_url: str = "postgresql+asyncpg://waseet:waseet@localhost:5432/waseet"
+    database_url: str = "postgresql+asyncpg://waseet:waseet@localhost:5434/waseet"
 
     # --- Auth -------------------------------------------------------------
     jwt_secret: SecretStr = SecretStr("dev-only-insecure-secret")

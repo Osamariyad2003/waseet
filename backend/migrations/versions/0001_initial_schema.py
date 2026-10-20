@@ -55,11 +55,13 @@ def upgrade() -> None:
         sa.Column("role", postgresql.ENUM(name="role", create_type=False), nullable=False),
         sa.Column("password_hash", sa.String(length=255), nullable=False),
         sa.Column("paypal_account_ref", sa.String(length=320), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.PrimaryKeyConstraint("id", name="pk_users"),
-        sa.UniqueConstraint("email", name="uq_users_email"),
     )
-    op.create_index("ix_users_email", "users", ["email"])
+    # unique=True + index=True on the model renders as a single unique index.
+    op.create_index("ix_users_email", "users", ["email"], unique=True)
 
     op.create_table(
         "deals",
@@ -76,8 +78,12 @@ def upgrade() -> None:
         sa.Column("paypal_capture_id", sa.String(length=64), nullable=True),
         sa.Column("payout_batch_id", sa.String(length=64), nullable=True),
         sa.Column("refund_id", sa.String(length=64), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.ForeignKeyConstraint(["buyer_id"], ["users.id"], name="fk_deals_buyer_id_users"),
         sa.ForeignKeyConstraint(["seller_id"], ["users.id"], name="fk_deals_seller_id_users"),
         sa.PrimaryKeyConstraint("id", name="pk_deals"),
@@ -95,7 +101,9 @@ def upgrade() -> None:
         sa.Column("position", sa.Integer(), nullable=False),
         sa.Column("confirmed_by_buyer", sa.Boolean(), nullable=False),
         sa.Column("confirmed_by_seller", sa.Boolean(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.ForeignKeyConstraint(
             ["deal_id"],
             ["deals.id"],
@@ -115,7 +123,9 @@ def upgrade() -> None:
         ),
         sa.Column("content_ref", sa.Text(), nullable=False),
         sa.Column("note", sa.Text(), nullable=True),
-        sa.Column("submitted_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "submitted_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.ForeignKeyConstraint(
             ["deal_id"], ["deals.id"], name="fk_deliverables_deal_id_deals", ondelete="CASCADE"
         ),
@@ -136,7 +146,9 @@ def upgrade() -> None:
             "decided_by", postgresql.ENUM(name="decided_by", create_type=False), nullable=False
         ),
         sa.Column("recommendation", sa.Text(), nullable=True),
-        sa.Column("decided_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "decided_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.ForeignKeyConstraint(
             ["deal_id"],
             ["deals.id"],
@@ -167,7 +179,9 @@ def upgrade() -> None:
         sa.Column("event", sa.String(length=64), nullable=False),
         sa.Column("reason", sa.Text(), nullable=False),
         sa.Column("paypal_reference", sa.String(length=64), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.ForeignKeyConstraint(
             ["deal_id"], ["deals.id"], name="fk_audit_log_deal_id_deals", ondelete="CASCADE"
         ),
@@ -183,11 +197,12 @@ def upgrade() -> None:
         sa.Column("payload", postgresql.JSONB(), nullable=False),
         sa.Column("processed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("outcome", sa.String(length=255), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.PrimaryKeyConstraint("id", name="pk_webhook_events"),
-        sa.UniqueConstraint("event_id", name="uq_webhook_events_event_id"),
     )
-    op.create_index("ix_webhook_events_event_id", "webhook_events", ["event_id"])
+    op.create_index("ix_webhook_events_event_id", "webhook_events", ["event_id"], unique=True)
 
     # FR-10: the audit log is append-only. Enforced in the database, not just
     # by convention in the repository.
