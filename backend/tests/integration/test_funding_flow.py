@@ -304,6 +304,12 @@ class TestClientToken:
         assert response.status_code == 200
         assert response.json()["client_token"] == "fake-browser-safe-client-token"
 
+    async def test_the_response_names_the_sandbox_sdk_url(self, client, tokens):
+        """So the browser loads the sandbox SDK, not production, against a
+        sandbox order."""
+        response = await client.get("/paypal/client-token", headers=auth(tokens["buyer"]))
+        assert response.json()["sdk_url"] == "https://www.sandbox.paypal.com/web-sdk/v6/core"
+
     async def test_an_anonymous_caller_cannot_mint_tokens(self, client):
         """Otherwise anyone could burn through the platform's credentials."""
         response = await client.get("/paypal/client-token")

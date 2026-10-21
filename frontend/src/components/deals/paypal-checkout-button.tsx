@@ -27,7 +27,10 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { ApiError, api } from "@/lib/api";
 
-const SDK_URL = "https://www.paypal.com/web-sdk/v6/core";
+// The v6 core SDK URL is environment-specific and comes from the backend
+// with the client token, so the browser never loads a production SDK against
+// a sandbox order — the failure that looks like "things don't appear to be
+// working" in PayPal's own window.
 const SDK_SCRIPT_ID = "paypal-web-sdk-v6";
 
 type Presentation = { presentationMode: "popup" | "modal" | "auto" };
@@ -61,8 +64,8 @@ declare global {
   }
 }
 
-/** Load the v6 core script once per page. */
-function loadSdkScript(): Promise<void> {
+/** Load the v6 core script once per page, from the environment's URL. */
+function loadSdkScript(sdkUrl: string): Promise<void> {
   if (typeof window === "undefined") return Promise.reject(new Error("no window"));
   if (window.paypal) return Promise.resolve();
 
@@ -79,7 +82,7 @@ function loadSdkScript(): Promise<void> {
   return new Promise((resolve, reject) => {
     const script = document.createElement("script");
     script.id = SDK_SCRIPT_ID;
-    script.src = SDK_URL;
+    script.src = sdkUrl;
     script.async = true;
     script.onload = () => resolve();
     script.onerror = () => reject(new Error("sdk failed"));
@@ -117,7 +120,10 @@ export function PayPalCheckoutButton({
     const prepare = async () => {
       setPhase("preparing");
       try {
-        const [{ client_token }] = await Promise.all([api.getClientToken(), loadSdkScript()]);
+        // The token carries the environment's SDK URL, so the matching
+        // sandbox/live core script loads — fetch it before the script.
+        const { client_token, sdk_url } = await api.getClientToken();
+        await loadSdkScript(sdk_url);
         if (cancelled) return;
         if (!window.paypal) throw new Error("sdk missing");
 
@@ -178,7 +184,8 @@ export function PayPalCheckoutButton({
 
     try {
       await session.start(
-        { presentationMode: "popup" },
+        // "auto" lets the SDK pick popup or modal — the documented default.
+        { presentationMode: "auto" },
         // The order is created by our backend from the deal's own amount.
         api.createOrder(dealId).then((order) => ({ orderId: order.paypal_order_id })),
       );

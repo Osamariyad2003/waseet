@@ -139,6 +139,8 @@ export interface CreateOrderResponse {
 
 export interface ClientTokenResponse {
   client_token: string;
+  /** The environment-matched v6 core SDK URL (sandbox vs live). */
+  sdk_url: string;
 }
 
 export interface MediationRecommendation {

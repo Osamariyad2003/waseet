@@ -182,9 +182,11 @@ class CreateOrderResponse(BaseModel):
 
 
 class ClientTokenResponse(BaseModel):
-    """A browser-safe token for the PayPal JS SDK v6."""
+    """A browser-safe token for the PayPal JS SDK v6, and the environment's
+    SDK core URL so the browser loads the matching sandbox/live SDK."""
 
     client_token: str
+    sdk_url: str
 
 
 class CaptureOrderRequest(BaseModel):

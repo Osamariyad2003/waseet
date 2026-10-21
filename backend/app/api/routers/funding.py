@@ -12,20 +12,35 @@ from app.api.schemas.deals import (
     CreateOrderResponse,
     DealResponse,
 )
-from app.dependencies import CurrentUserDep, DealServiceDep, PayPalDep
+from app.dependencies import CurrentUserDep, DealServiceDep, PayPalDep, SettingsDep
 
 router = APIRouter(tags=["funding"])
 
+# The v6 Web SDK loads from an environment-specific core URL. A production
+# SDK cannot load a sandbox order (and vice versa), so the browser must load
+# the one that matches the credentials the backend is using.
+_SANDBOX_SDK_URL = "https://www.sandbox.paypal.com/web-sdk/v6/core"
+_LIVE_SDK_URL = "https://www.paypal.com/web-sdk/v6/core"
+
 
 @router.get("/paypal/client-token", response_model=ClientTokenResponse)
-async def get_client_token(user: CurrentUserDep, paypal: PayPalDep) -> ClientTokenResponse:
-    """Mint a browser-safe token for the PayPal JS SDK v6.
+async def get_client_token(
+    user: CurrentUserDep, paypal: PayPalDep, settings: SettingsDep
+) -> ClientTokenResponse:
+    """Mint a browser-safe token for the PayPal JS SDK v6, and tell the
+    browser which SDK environment to load.
 
     Authenticated, so an anonymous caller cannot burn through tokens on the
-    platform's credentials. The client secret stays on the server.
+    platform's credentials. The client secret stays on the server. The SDK
+    URL is derived from PAYPAL_BASE_URL so the browser can never load a
+    production SDK against a sandbox order.
     """
     token = await paypal.get_client_token()
-    return ClientTokenResponse(client_token=token)
+    is_sandbox = "sandbox" in settings.paypal_base_url
+    return ClientTokenResponse(
+        client_token=token,
+        sdk_url=_SANDBOX_SDK_URL if is_sandbox else _LIVE_SDK_URL,
+    )
 
 
 @router.post(
