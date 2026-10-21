@@ -22,6 +22,7 @@ from app.domain.enums import Role
 from app.domain.errors import NotAuthorizedForDeal
 from app.integrations.ai.client import AnthropicAIGateway
 from app.integrations.ai.interface import AIGateway
+from app.integrations.ai.stub import StubAIGateway
 from app.integrations.content.client import HttpContentFetcher
 from app.integrations.content.interface import ContentFetcher
 from app.integrations.paypal.client import PayPalClient
@@ -60,7 +61,9 @@ def get_paypal_gateway(request: Request, settings: SettingsDep) -> PayPalGateway
 def get_ai_gateway(request: Request, settings: SettingsDep) -> AIGateway:
     gateway = getattr(request.app.state, "ai_gateway", None)
     if gateway is None:
-        gateway = AnthropicAIGateway(settings)
+        # The stub exists so the product can be demonstrated without a key.
+        # Settings refuse it in production, so this cannot be reached there.
+        gateway = StubAIGateway() if settings.use_stub_ai else AnthropicAIGateway(settings)
         request.app.state.ai_gateway = gateway
     return gateway
 

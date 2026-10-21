@@ -313,3 +313,61 @@ class TestAuthorizationAndGuards:
         assert fake_paypal.refunds == []
         # The human report must not survive a settlement that did not happen.
         assert len(current.json()["verification_reports"]) == 1
+
+
+class TestTheMediatorSeesTheDetail:
+    """The mediator's job is to weigh what was unmet, so it has to be told.
+
+    The stored report's per-criterion findings were being dropped when the
+    verification was handed to the mediator, leaving it to reason from a
+    bare verdict.
+    """
+
+    async def test_the_per_criterion_findings_reach_the_mediator(
+        self, client, tokens, deal_payload, fake_ai
+    ):
+        deal = await disputed_deal(client, tokens, deal_payload, fake_ai)
+
+        captured = {}
+        original = fake_ai.mediate_dispute
+
+        async def spy(**kwargs):
+            captured.update(kwargs)
+            return await original(**kwargs)
+
+        fake_ai.mediate_dispute = spy
+        await client.get(
+            f"/deals/{deal['id']}/dispute/recommendation", headers=auth(tokens["reviewer"])
+        )
+
+        verification = captured["verification"]
+        assert verification is not None
+        assert verification.per_criterion, "the mediator was given no findings to weigh"
+        assert verification.failed_criteria_count > 0
+        texts = {finding.text for finding in verification.per_criterion}
+        assert all(text for text in texts)
+
+    async def test_the_failure_count_the_mediator_sees_matches_the_report(
+        self, client, tokens, deal_payload, fake_ai
+    ):
+        deal = await disputed_deal(client, tokens, deal_payload, fake_ai)
+
+        report = await client.get(
+            f"/deals/{deal['id']}/verification", headers=auth(tokens["buyer"])
+        )
+        expected = sum(1 for item in report.json()["per_criterion"] if not item["pass"])
+
+        captured = {}
+        original = fake_ai.mediate_dispute
+
+        async def spy(**kwargs):
+            captured.update(kwargs)
+            return await original(**kwargs)
+
+        fake_ai.mediate_dispute = spy
+        await client.get(
+            f"/deals/{deal['id']}/dispute/recommendation", headers=auth(tokens["reviewer"])
+        )
+
+        assert captured["verification"].failed_criteria_count == expected
+        assert expected > 0

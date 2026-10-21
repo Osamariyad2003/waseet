@@ -21,8 +21,11 @@ from decimal import Decimal
 import pytest
 import pytest_asyncio
 
-# A deterministic, credential-free environment, so a developer's real .env
-# can never leak into a test run.
+# A deterministic, credential-free environment. Setting WASEET_ENV_FILE empty
+# stops Settings reading backend/.env, so a developer's real credentials and
+# local flags can never change a test outcome. This must happen before
+# app.config is imported.
+os.environ["WASEET_ENV_FILE"] = ""
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("JWT_SECRET", "test-secret-not-a-real-key-padded-to-32-bytes")
 os.environ.setdefault("PAYPAL_CLIENT_ID", "test-client-id")

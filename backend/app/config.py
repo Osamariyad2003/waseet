@@ -4,6 +4,7 @@ nothing is logged, nothing is committed.
 
 from __future__ import annotations
 
+import os
 from decimal import Decimal
 from functools import lru_cache
 from typing import Literal
@@ -11,10 +12,15 @@ from typing import Literal
 from pydantic import SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Which dotenv file to read, if any. Tests set WASEET_ENV_FILE to empty so a
+# developer's real .env can never change a test outcome — without this the
+# suite silently inherits whatever is in the working copy.
+_ENV_FILE = os.environ.get("WASEET_ENV_FILE", ".env") or None
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=_ENV_FILE,
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
@@ -61,6 +67,9 @@ class Settings(BaseSettings):
 
     # --- Dev affordances --------------------------------------------------
     enable_webhook_simulator: bool = False
+    # Replaces the AI gateway with fixed keyword rules so the product can be
+    # clicked through without a model. Never real judgment.
+    use_stub_ai: bool = False
 
     @field_validator("auto_release_confidence_threshold")
     @classmethod
@@ -89,6 +98,11 @@ class Settings(BaseSettings):
         if len(secret.encode("utf-8")) < 32:
             raise ValueError(
                 "JWT_SECRET must be at least 32 bytes in production (RFC 7518 minimum for HS256)"
+            )
+        if self.use_stub_ai:
+            raise ValueError(
+                "USE_STUB_AI cannot be enabled in production — it replaces every "
+                "AI judgment with a fixed keyword rule"
             )
         if "sandbox" not in self.paypal_base_url:
             # This prototype is sandbox-only by design.

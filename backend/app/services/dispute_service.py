@@ -27,6 +27,7 @@ from app.domain.enums import (
 from app.domain.errors import DealNotFound, NotAuthorizedForDeal, TransitionGuardFailed
 from app.integrations.ai.interface import (
     AIGateway,
+    CriterionJudgment,
     MediationRecommendation,
     VerificationJudgment,
 )
@@ -200,12 +201,28 @@ def _verdict_for(action: SettlementAction) -> Verdict:
 
 def _judgment_from(report: VerificationReport | None) -> VerificationJudgment | None:
     """Rebuild the gateway's value object from the stored report, so the
-    mediator sees what the verifier actually said."""
+    mediator sees what the verifier actually said.
+
+    The per-criterion findings are rebuilt too, not dropped: which criteria
+    were unmet and why is the substance of the dispute, and a mediator asked
+    to weigh an outcome without them is reasoning from a verdict alone.
+    """
     if report is None:
         return None
+
+    findings = tuple(
+        CriterionJudgment(
+            criterion_id=str(item.get("criterion_id", "")),
+            text=str(item.get("text", "")),
+            passed=bool(item.get("pass")),
+            note=str(item.get("note", "")),
+        )
+        for item in (report.per_criterion or [])
+        if isinstance(item, dict)
+    )
     return VerificationJudgment(
         verdict=report.verdict,
         confidence=report.confidence,
         reasoning=report.reasoning,
-        per_criterion=(),
+        per_criterion=findings,
     )

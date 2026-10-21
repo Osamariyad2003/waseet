@@ -302,3 +302,56 @@ class TestSimulator:
         finally:
             monkeypatch.setenv("ENABLE_WEBHOOK_SIMULATOR", "true")
             get_settings.cache_clear()
+
+
+class TestCaptureReferenceIsRecorded:
+    """A deal funded by the webhook alone must still be settleable.
+
+    If PayPal captured but our own capture call never ran, the deal would
+    otherwise reach FUNDED with no capture reference — and then release and
+    refund would both refuse it as having no captured payment.
+    """
+
+    async def test_the_capture_id_is_taken_from_the_event(self, client, tokens, deal_payload):
+        deal = await draft_deal_with_order(client, tokens, deal_payload)
+
+        await client.post(
+            "/webhooks/paypal",
+            json=capture_event(deal["id"], capture_id="3C679366HH908993F"),
+            headers=SIGNATURE_HEADERS,
+        )
+
+        current = await client.get(f"/deals/{deal['id']}", headers=auth(tokens["buyer"]))
+        body = current.json()
+        assert body["state"] == "FUNDED"
+        assert body["paypal_capture_id"] == "3C679366HH908993F"
+
+    async def test_the_audit_entry_carries_that_reference(self, client, tokens, deal_payload):
+        deal = await draft_deal_with_order(client, tokens, deal_payload)
+        await client.post(
+            "/webhooks/paypal",
+            json=capture_event(deal["id"], capture_id="CAPTURE-FROM-WEBHOOK"),
+            headers=SIGNATURE_HEADERS,
+        )
+
+        audit = await client.get(f"/deals/{deal['id']}/audit", headers=auth(tokens["buyer"]))
+        funded = next(entry for entry in audit.json() if entry["to_state"] == "FUNDED")
+        assert funded["paypal_reference"] == "CAPTURE-FROM-WEBHOOK"
+
+    async def test_an_existing_capture_id_is_not_overwritten(
+        self, client, tokens, deal_payload, fake_paypal
+    ):
+        """The API capture is the authority; a later event cannot repoint it."""
+        deal = await create_deal(client, tokens, deal_payload)
+        await confirm_both(client, tokens, deal["id"])
+        funded = await fund(client, tokens, deal["id"])
+        original = funded["paypal_capture_id"]
+
+        await client.post(
+            "/webhooks/paypal",
+            json=capture_event(deal["id"], capture_id="SOMETHING-ELSE"),
+            headers=SIGNATURE_HEADERS,
+        )
+
+        current = await client.get(f"/deals/{deal['id']}", headers=auth(tokens["buyer"]))
+        assert current.json()["paypal_capture_id"] == original

@@ -139,11 +139,13 @@ async def _process_verified_event(
         logger.info("webhook.no_matching_deal", event_id=event_id, event_type=event_type)
         return {"status": "ignored", "reason": "no deal matches this event"}
 
+    resource = event.get("resource")
     outcome = await _apply_event(
         event_type=event_type,
         deal_id=deal.id,
         deal_repo=deal_repo,
         audit_repo=audit_repo,
+        resource=resource if isinstance(resource, dict) else None,
     )
     webhook_repo.mark_processed(claimed, outcome)
     await session.commit()
@@ -186,7 +188,12 @@ async def _find_deal(*, event: dict[str, Any], event_type: str, deal_repo: DealR
 
 
 async def _apply_event(
-    *, event_type: str, deal_id, deal_repo: DealRepoDep, audit_repo: AuditRepoDep
+    *,
+    event_type: str,
+    deal_id,
+    deal_repo: DealRepoDep,
+    audit_repo: AuditRepoDep,
+    resource: dict[str, Any] | None = None,
 ) -> str:
     """Apply a confirmation event to the deal, under a row lock."""
     deal = await deal_repo.get_for_update(deal_id)
@@ -194,6 +201,15 @@ async def _apply_event(
         return "no matching deal"
 
     if event_type == CAPTURE_COMPLETED:
+        # Record the capture id from the event if we do not already have it.
+        # Without this, a deal funded by the webhook alone — PayPal captured,
+        # but our own capture call never ran or failed — would sit in FUNDED
+        # with no capture reference, and both release and refund would later
+        # refuse it as having no captured payment to settle.
+        captured_id = str((resource or {}).get("id") or "").strip()
+        if captured_id and not deal.paypal_capture_id:
+            deal.paypal_capture_id = captured_id
+
         if is_already_applied(deal.state, TransitionEvent.PAYMENT_CAPTURED):
             return f"capture already applied; the deal is {deal.state.value}"
         if deal.state is not DealState.DRAFT:

@@ -48,6 +48,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         confidence_threshold=str(settings.auto_release_confidence_threshold),
         platform_fee_percent=str(settings.platform_fee_percent),
     )
+    if settings.use_stub_ai:
+        logger.warning(
+            "app.stub_ai_enabled",
+            detail="USE_STUB_AI is on: no model is called and no judgment is real",
+        )
     if settings.is_production and settings.enable_webhook_simulator:
         # Belt and braces: the endpoint also refuses, but a misconfigured
         # deploy should be loud at boot.

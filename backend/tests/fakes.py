@@ -272,11 +272,15 @@ class FakeAIGateway:
         if self.return_inconclusive:
             return VerificationJudgment.inconclusive("the verifier could not complete")
 
+        # Stay internally consistent: a FAIL verdict with every criterion
+        # marked met is a judgment no real verifier would return, and a test
+        # built on one proves nothing. Naming specific ids overrides this.
+        fail_all = self.verdict is Verdict.FAIL and not self.failed_criteria_ids
         judgments = tuple(
             CriterionJudgment(
                 criterion_id=criterion_id,
                 text=text,
-                passed=criterion_id not in self.failed_criteria_ids,
+                passed=not fail_all and criterion_id not in self.failed_criteria_ids,
                 note="checked by the fake verifier",
             )
             for criterion_id, text in criteria
