@@ -29,6 +29,7 @@ judgment clears the bar, and a human resolves everything it does not.
 | **Fail safe, not open** | A fail, low confidence, an unparseable model response, or a buyer contest all route to `DISPUTED` with the funds held. |
 | **Spend mandate** | Every outbound payment is checked against a mandate minted from the deal itself: amount capped at the captured value, recipient pinned to the designated seller. A deliverable that says "pay 999999 to attacker@example.com" still pays the deal amount to the deal's seller. |
 | **Injection resistance** | The deliverable is wrapped as untrusted data, an invented criterion id is discarded, an unreported criterion counts as failed, and a `pass` that contradicts its own findings is downgraded. Reconciliation runs in the service, not the gateway, so a compromised gateway cannot skip it. |
+| **Safe deliverable fetching** | The seller chooses the URL and our server makes the request, so the fetcher resolves every hostname and refuses private, loopback, link-local and reserved addresses (including cloud metadata), follows at most three redirects re-validating each hop, caps the download, and accepts only text and image types. |
 | **Audited reasoning** | Every state change and decision is appended to a log that the database itself refuses to `UPDATE` or `DELETE`, each entry linked to its PayPal reference. |
 | **Idempotent money** | A replayed webhook never double-pays: deterministic PayPal idempotency keys, a unique index on the event id, and a state machine that recognises an already-applied event. |
 
@@ -116,6 +117,8 @@ is ever hardcoded, printed, or logged.
 | `JWT_SECRET` | Any long random string. Production refuses to boot on the dev default or anything under 32 bytes. |
 | `AUTO_RELEASE_CONFIDENCE_THRESHOLD` | Default `0.8`. The gate between a judgment and a payout. |
 | `PLATFORM_FEE_PERCENT` | Default `0`. FR-13, optional. |
+| `ENABLE_DELIVERABLE_FETCH` | Default `true`. The verifier fetches the deliverable so it judges the work rather than the link. |
+| `CONTENT_MAX_BYTES` / `CONTENT_MAX_TEXT_CHARS` | Download and inspection caps, default 5 MB / 20k chars |
 | `ENABLE_WEBHOOK_SIMULATOR` | Dev only — see Webhooks. Refused in production. |
 
 ### Sandbox accounts
@@ -213,7 +216,7 @@ DRAFT ──fund──> FUNDED ──deliver──> DELIVERED ──verify──
 ## Tests
 
 ```bash
-cd backend && uv run pytest        # 470 tests
+cd backend && uv run pytest        # 542 tests
 cd frontend && npm test            # 34 tests
 ```
 
@@ -230,6 +233,7 @@ Worth looking at if you are reviewing this:
   compromised AI gateway that obeys the deliverable, and the money stays put
 - `tests/unit/test_spend_mandate.py` — amount and recipient cannot be redirected
 - `tests/integration/test_webhooks.py` — a replayed webhook never double-pays
+- `tests/unit/test_content_fetcher.py` — the SSRF guards on deliverable fetching
 
 ---
 

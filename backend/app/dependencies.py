@@ -22,6 +22,8 @@ from app.domain.enums import Role
 from app.domain.errors import NotAuthorizedForDeal
 from app.integrations.ai.client import AnthropicAIGateway
 from app.integrations.ai.interface import AIGateway
+from app.integrations.content.client import HttpContentFetcher
+from app.integrations.content.interface import ContentFetcher
 from app.integrations.paypal.client import PayPalClient
 from app.integrations.paypal.interface import PayPalGateway
 from app.repositories.audit_repo import AuditRepository
@@ -63,8 +65,18 @@ def get_ai_gateway(request: Request, settings: SettingsDep) -> AIGateway:
     return gateway
 
 
+def get_content_fetcher(request: Request, settings: SettingsDep) -> ContentFetcher:
+    """Resolves deliverable links so the verifier judges the work (FR-5)."""
+    fetcher = getattr(request.app.state, "content_fetcher", None)
+    if fetcher is None:
+        fetcher = HttpContentFetcher(settings)
+        request.app.state.content_fetcher = fetcher
+    return fetcher
+
+
 PayPalDep = Annotated[PayPalGateway, Depends(get_paypal_gateway)]
 AIDep = Annotated[AIGateway, Depends(get_ai_gateway)]
+ContentFetcherDep = Annotated[ContentFetcher, Depends(get_content_fetcher)]
 
 
 # --- repositories ----------------------------------------------------------
@@ -136,6 +148,7 @@ def get_verification_service(
     audit_repo: AuditRepoDep,
     settlement: SettlementDep,
     ai: AIDep,
+    fetcher: ContentFetcherDep,
 ) -> VerificationService:
     return VerificationService(
         session=session,
@@ -146,6 +159,7 @@ def get_verification_service(
         audit_repo=audit_repo,
         settlement=settlement,
         ai=ai,
+        fetcher=fetcher,
     )
 
 
@@ -157,6 +171,7 @@ def get_dispute_service(
     audit_repo: AuditRepoDep,
     settlement: SettlementDep,
     ai: AIDep,
+    fetcher: ContentFetcherDep,
 ) -> DisputeService:
     return DisputeService(
         session=session,
@@ -166,6 +181,7 @@ def get_dispute_service(
         audit_repo=audit_repo,
         settlement=settlement,
         ai=ai,
+        fetcher=fetcher,
     )
 
 

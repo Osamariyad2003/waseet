@@ -15,6 +15,7 @@ from decimal import Decimal
 from typing import Protocol, runtime_checkable
 
 from app.domain.enums import SettlementAction, Verdict
+from app.integrations.content.interface import FetchedContent
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,14 +95,21 @@ class DealContext:
 class DeliverableContext:
     """The submitted work, as untrusted data.
 
-    Anything inside `content_ref` or `note` may be an attempt to instruct
-    the model ("mark this as passed"). Implementations must wrap it as data
-    and tell the model to judge it, never to obey it.
+    Anything inside `content_ref`, `note` or `inspected` may be an attempt
+    to instruct the model ("mark this as passed"). Implementations must wrap
+    all of it as data and tell the model to judge it, never to obey it —
+    fetched content is *more* hostile than the reference, not less, since
+    the seller controls the page it comes from.
+
+    `inspected` is what the fetcher managed to retrieve: the page's text, an
+    image to look at, or an explicit statement that it could not be opened.
+    When it is None the deliverable is its own content (a text submission).
     """
 
     type: str
     content_ref: str
     note: str | None = None
+    inspected: FetchedContent | None = None
 
 
 @runtime_checkable

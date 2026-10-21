@@ -61,8 +61,13 @@ held, not forwarded.
 
 ## Scene 3 — deliver and auto-release (~45s)
 
-**As the seller.** Submit a deliverable that meets the checklist — a link to a
-vector file.
+**As the seller.** Submit a deliverable that meets the checklist — a public
+link to an SVG logo.
+
+The link is fetched server-side and the retrieved file is what the verifier
+judges, so this is the agent reading the actual work. (Private and internal
+addresses are refused; anything that cannot be opened is failed at low
+confidence and goes to a human.)
 
 The deal goes to **VERIFYING** and the screen says so rather than freezing.
 Then the report appears: per-criterion findings, an overall verdict, a
@@ -113,6 +118,7 @@ the whole interface mirror to RTL.
 | Checkout popup blocked | Browser popup blocker | Allow popups for localhost before recording |
 | Release fails with a payout error | `PAYPAL_SELLER_RECEIVER_EMAIL` unset or not a real sandbox account | The deal stays mid-flight and no money moved — fix the env var and retry |
 | Verification sits in VERIFYING | The model call is slow | The page polls; it resolves or routes to DISPUTED rather than hanging forever |
+| The verifier says it could not open the link | The URL is private, 404s, or is an unsupported type | Use a publicly reachable SVG/PNG/text link. A `text` deliverable always works, since it is its own content |
 | Seller balance does not move | Sandbox payouts can take a moment | Refresh the sandbox account page |
 
 Nothing in the demo depends on a public webhook URL. Webhooks confirm state;

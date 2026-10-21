@@ -21,6 +21,7 @@ import pytest
 
 from app.domain.enums import DeliverableType
 from app.domain.errors import DealNotFound
+from app.integrations.content.interface import ContentFetcher
 from app.services.agent_toolbox import READ_ONLY_TOOLS, AgentToolbox
 
 FORBIDDEN_VERBS = (
@@ -139,10 +140,22 @@ class TestScope:
             assert name.startswith("read_")
 
     def test_the_toolbox_holds_no_paypal_or_settlement_capability(self):
-        """It is constructed with two repositories and nothing else — there
-        is no gateway or service in reach."""
+        """Constructed with two repositories and a content fetcher, and
+        nothing else — no PayPal gateway and no settlement service is in
+        reach, so no agent path can lead to a payment."""
         parameters = set(inspect.signature(AgentToolbox.__init__).parameters) - {"self"}
-        assert parameters == {"deal_id", "deal_repo", "deliverable_repo"}
+        assert parameters == {"deal_id", "deal_repo", "deliverable_repo", "fetcher"}
+
+    def test_the_content_fetcher_is_itself_read_only(self):
+        """The fetcher retrieves what the seller already published. Its whole
+        surface is one read, so adding it widened what an agent can *see*,
+        never what it can do."""
+        public = {
+            name
+            for name, _ in inspect.getmembers(ContentFetcher, inspect.isfunction)
+            if not name.startswith("_")
+        }
+        assert public == {"fetch"}
 
     async def test_a_toolbox_is_scoped_to_one_deal(self, toolbox, deal_id):
         """An agent reasoning about one deal cannot reach another."""
@@ -239,3 +252,80 @@ class TestReadDeliverable:
         deliverable = await toolbox.read_deliverable()
         assert deliverable.content_ref == hostile
         assert deliverable.note == hostile
+
+
+class TestDeliverableRetrieval:
+    """FR-5: read_deliverable resolves a reference into something the
+    verifier can actually judge."""
+
+    async def test_a_link_is_fetched(self, deal_id):
+        from tests.fakes import FakeContentFetcher
+
+        fetcher = FakeContentFetcher(text="<svg>a logo</svg>")
+        toolbox = AgentToolbox(
+            deal_id=deal_id,
+            deal_repo=StubDealRepo(deal=StubDeal(id=deal_id)),
+            deliverable_repo=StubDeliverableRepo(
+                deliverable=StubDeliverable(
+                    type=DeliverableType.URL, content_ref="https://files.example.com/logo.svg"
+                )
+            ),
+            fetcher=fetcher,
+        )
+
+        deliverable = await toolbox.read_deliverable()
+
+        assert fetcher.fetched == ["https://files.example.com/logo.svg"]
+        assert deliverable is not None
+        assert deliverable.inspected is not None
+        assert deliverable.inspected.text == "<svg>a logo</svg>"
+
+    async def test_a_text_submission_is_not_fetched(self, deal_id):
+        """Its content is itself; there is no link to resolve."""
+        from tests.fakes import FakeContentFetcher
+
+        fetcher = FakeContentFetcher()
+        toolbox = AgentToolbox(
+            deal_id=deal_id,
+            deal_repo=StubDealRepo(deal=StubDeal(id=deal_id)),
+            deliverable_repo=StubDeliverableRepo(
+                deliverable=StubDeliverable(
+                    type=DeliverableType.TEXT, content_ref="the work itself"
+                )
+            ),
+            fetcher=fetcher,
+        )
+
+        deliverable = await toolbox.read_deliverable()
+
+        assert fetcher.fetched == []
+        assert deliverable is not None
+        assert deliverable.inspected is None
+
+    async def test_a_failed_fetch_is_passed_through_not_swallowed(self, deal_id):
+        """The verifier has to be told it could not look."""
+        from tests.fakes import FakeContentFetcher
+
+        toolbox = AgentToolbox(
+            deal_id=deal_id,
+            deal_repo=StubDealRepo(deal=StubDeal(id=deal_id)),
+            deliverable_repo=StubDeliverableRepo(deliverable=StubDeliverable()),
+            fetcher=FakeContentFetcher(unavailable_reason="the link returned HTTP 404"),
+        )
+
+        deliverable = await toolbox.read_deliverable()
+
+        assert deliverable is not None
+        assert deliverable.inspected is not None
+        assert not deliverable.inspected.is_available
+        assert deliverable.inspected.reason == "the link returned HTTP 404"
+
+    async def test_without_a_fetcher_the_reference_is_passed_as_is(self, deal_id):
+        toolbox = AgentToolbox(
+            deal_id=deal_id,
+            deal_repo=StubDealRepo(deal=StubDeal(id=deal_id)),
+            deliverable_repo=StubDeliverableRepo(deliverable=StubDeliverable()),
+        )
+        deliverable = await toolbox.read_deliverable()
+        assert deliverable is not None
+        assert deliverable.inspected is None

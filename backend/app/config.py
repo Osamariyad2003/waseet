@@ -50,6 +50,15 @@ class Settings(BaseSettings):
     auto_release_confidence_threshold: Decimal = Decimal("0.8")
     platform_fee_percent: Decimal = Decimal("0")
 
+    # --- Deliverable inspection (FR-5) ------------------------------------
+    # The verifier fetches the deliverable so it judges the work rather than
+    # a link. The URL comes from the seller, so the fetcher refuses private
+    # addresses and caps what it will download.
+    enable_deliverable_fetch: bool = True
+    content_fetch_timeout_seconds: float = 10.0
+    content_max_bytes: int = 5_000_000
+    content_max_text_chars: int = 20_000
+
     # --- Dev affordances --------------------------------------------------
     enable_webhook_simulator: bool = False
 

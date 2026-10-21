@@ -369,3 +369,63 @@ class TestVerificationIdempotency:
         )
         assert response.status_code == 403
         assert fake_ai.verify_calls == 0
+
+
+class TestDeliverableIsInspected:
+    """FR-5 end to end: the link is resolved before the verifier judges it."""
+
+    async def test_a_submitted_link_is_fetched_before_verification(
+        self, client, tokens, deal_payload, fake_fetcher
+    ):
+        deal = await funded_deal(client, tokens, deal_payload)
+        await deliver(client, tokens, deal["id"], content_ref="https://files.example.com/logo.svg")
+        await verify(client, tokens, deal["id"])
+
+        assert fake_fetcher.fetched == ["https://files.example.com/logo.svg"]
+
+    async def test_the_verifier_receives_the_retrieved_content(
+        self, client, tokens, deal_payload, fake_fetcher, fake_ai
+    ):
+        fake_fetcher.text = "A scalable vector logo with a transparent background."
+
+        deal = await funded_deal(client, tokens, deal_payload)
+        await deliver(client, tokens, deal["id"])
+        await verify(client, tokens, deal["id"])
+
+        assert fake_ai.last_deliverable is not None
+        inspected = fake_ai.last_deliverable.inspected
+        assert inspected is not None
+        assert inspected.text == "A scalable vector logo with a transparent background."
+
+    async def test_a_text_deliverable_is_not_fetched(
+        self, client, tokens, deal_payload, fake_fetcher
+    ):
+        deal = await funded_deal(client, tokens, deal_payload)
+        await deliver(client, tokens, deal["id"], type="text", content_ref="The finished copy.")
+        await verify(client, tokens, deal["id"])
+
+        assert fake_fetcher.fetched == []
+
+    async def test_an_unreachable_link_still_reaches_a_human_not_a_payout(
+        self, client, tokens, deal_payload, fake_fetcher, fake_ai, fake_paypal
+    ):
+        """A deliverable nobody could open must not be released on trust.
+
+        The fetcher reports why, the verifier is told it has not seen the
+        work, and in a real run that becomes a fail at low confidence. Here
+        the gateway is faked, so the test pins the part the system controls:
+        the reason reaches the verifier, and nothing pays out when it comes
+        back unconvinced.
+        """
+        fake_fetcher.unavailable_reason = "the link points at a private or internal address"
+        fake_ai.verdict = Verdict.FAIL
+        fake_ai.confidence = Decimal("0.2")
+
+        deal = await funded_deal(client, tokens, deal_payload)
+        await deliver(client, tokens, deal["id"])
+        result = await verify(client, tokens, deal["id"])
+
+        inspected = fake_ai.last_deliverable.inspected
+        assert inspected is not None and not inspected.is_available
+        assert result["state"] == "DISPUTED"
+        assert fake_paypal.payouts == []

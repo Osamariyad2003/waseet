@@ -24,8 +24,10 @@ from __future__ import annotations
 
 import uuid
 
+from app.domain.enums import DeliverableType
 from app.domain.errors import DealNotFound
 from app.integrations.ai.interface import DealContext, DeliverableContext
+from app.integrations.content.interface import ContentFetcher, FetchedContent
 from app.repositories.deal_repo import DealRepository
 from app.repositories.deliverable_repo import DeliverableRepository
 
@@ -43,10 +45,14 @@ class AgentToolbox:
         deal_id: uuid.UUID,
         deal_repo: DealRepository,
         deliverable_repo: DeliverableRepository,
+        fetcher: ContentFetcher | None = None,
     ) -> None:
         self._deal_id = deal_id
         self._deals = deal_repo
         self._deliverables = deliverable_repo
+        # Read-only too: it retrieves what the seller already published. It
+        # cannot write anywhere, and it refuses internal addresses.
+        self._fetcher = fetcher
 
     @property
     def deal_id(self) -> uuid.UUID:
@@ -75,15 +81,30 @@ class AgentToolbox:
     async def read_deliverable(self) -> DeliverableContext | None:
         """The latest submission, or None if nothing has been submitted.
 
-        The content is untrusted data. It is handed to the agent wrapped in
-        an explicit data boundary and with instructions to judge it rather
-        than obey it — see `integrations/ai/prompts.py`.
+        A link is only a pointer, so for anything that is not plain text the
+        tool resolves it: the page's text, or the image itself, or an
+        explicit statement that it could not be opened. That is what makes
+        the verifier judge the work rather than the URL (FR-5).
+
+        All of it is untrusted data — the fetched page more so than the
+        reference, since the seller controls what is served there. It is
+        handed to the agent inside an explicit data boundary with
+        instructions to judge it, never obey it; see
+        `integrations/ai/prompts.py`.
         """
         deliverable = await self._deliverables.get_latest(self._deal_id)
         if deliverable is None:
             return None
+
+        inspected: FetchedContent | None = None
+        if self._fetcher is not None and deliverable.type is not DeliverableType.TEXT:
+            # A text submission is already its own content; everything else
+            # is a reference that has to be resolved to be judged.
+            inspected = await self._fetcher.fetch(deliverable.content_ref)
+
         return DeliverableContext(
             type=deliverable.type.value,
             content_ref=deliverable.content_ref,
             note=deliverable.note,
+            inspected=inspected,
         )

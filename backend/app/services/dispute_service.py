@@ -30,6 +30,7 @@ from app.integrations.ai.interface import (
     MediationRecommendation,
     VerificationJudgment,
 )
+from app.integrations.content.interface import ContentFetcher
 from app.models.deal import Deal
 from app.models.verification import VerificationReport
 from app.repositories.audit_repo import AuditRepository
@@ -66,6 +67,7 @@ class DisputeService:
         audit_repo: AuditRepository,
         settlement: SettlementService,
         ai: AIGateway,
+        fetcher: ContentFetcher | None = None,
     ) -> None:
         self._session = session
         self._deals = deal_repo
@@ -74,6 +76,7 @@ class DisputeService:
         self._audit = audit_repo
         self._settlement = settlement
         self._ai = ai
+        self._fetcher = fetcher
 
     async def get_recommendation(self, deal_id: uuid.UUID) -> MediationRecommendation:
         """Run the mediator agent for a reviewer. Read-only: produces words,
@@ -96,6 +99,7 @@ class DisputeService:
             deal_id=deal.id,
             deal_repo=self._deals,
             deliverable_repo=self._deliverables,
+            fetcher=self._fetcher,
         )
         recommendation = await self._ai.mediate_dispute(
             deal=await toolbox.read_deal(),

@@ -1,10 +1,11 @@
 # SRS coverage report
 
-Audited against the code on 21 Oct 2026, at commit `a4301a8`. Every claim
+Audited against the code on 21 Oct 2026, at commit `a4301a8`, and updated
+the same day after Gap 1 was closed. Every claim
 below was checked by reading the implementation or running it — not from
 memory of having built it.
 
-**Totals:** 470 backend tests, 34 frontend tests, 19 endpoints.
+**Totals:** 542 backend tests, 34 frontend tests, 19 endpoints.
 
 ---
 
@@ -15,8 +16,8 @@ memory of having built it.
 | FR-1 | Create a deal from a plain-language description | Must | **Done** | `POST /deals` → `DealService.create_deal` |
 | FR-2 | AI drafts a checklist; both parties confirm before funding | Must | **Done** | criteria agent + `POST /deals/{id}/criteria/confirm`; the state machine's `_guard_fundable` refuses funding until both sides confirm |
 | FR-3 | Buyer funds via PayPal; captured into the platform account | Must | **Done** | `POST /deals/{id}/order` + `/capture`, Orders v2 |
-| FR-4 | Seller submits a deliverable (URL, **uploaded file**, image, repo, text) | Must | **Partial** | all five types are accepted, but as *references*. No binary upload — see Gap 2 |
-| FR-5 | AI verifies against each criterion: pass/fail, verdict, confidence, reasoning | Must | **Partial** | the full report is produced and stored, but the verifier only sees the deliverable's *reference*, not its content — see **Gap 1** |
+| FR-4 | Seller submits a deliverable (URL, **uploaded file**, image, repo, text) | Must | **Partial** | all five types are accepted and now *inspected*, but as references — no binary upload. See Gap 2 |
+| FR-5 | AI verifies against each criterion: pass/fail, verdict, confidence, reasoning | Must | **Done** | the deliverable is fetched and the retrieved text or image is what the verifier judges — Gap 1, now closed |
 | FR-6 | High-confidence pass auto-releases via Payout | Must | **Done** | `decision_policy.decide` → `SettlementService.settle` |
 | FR-7 | Fail, low confidence, or buyer contest → DISPUTED | Must | **Done** | policy + `POST /deals/{id}/contest` |
 | FR-8 | AI recommends release/refund/split; a human decides | Must | **Done** | `GET /dispute/recommendation`, `POST /dispute/resolve`, reviewer-only |
@@ -26,43 +27,46 @@ memory of having built it.
 | FR-12 | Parties are *updated* on key events via webhook-driven state | Should | **Partial** | state is reflected, not pushed — see Gap 3 |
 | FR-13 | Configurable platform fee on release | Could | **Done** | `PLATFORM_FEE_PERCENT`, default 0 |
 
-**11 of 13 complete; 2 partial, 1 of which affects the demo.**
+**12 of 13 complete; 1 partial (FR-4, no binary upload).**
 
 ---
 
 ## Gaps
 
-### Gap 1 — the verifier cannot open what it is judging (FR-5) · **blocks the demo as scripted**
+### Gap 1 — the verifier could not open what it was judging (FR-5) · **closed**
 
-The SRS specifies a "multimodal LLM reads text/image/URL/file against each
-criterion". The implementation sends the model the deliverable's
-`content_ref` as a **string**. Nothing fetches a URL, and no image is ever
-attached — verified: `app/integrations/ai/client.py` contains no HTTP client
-and no image blocks.
+**Originally:** the model was sent the deliverable's `content_ref` as a
+string. Nothing fetched a URL and no image was ever attached, so for `url`,
+`repo`, `image` and `file` deliverables the verifier was judging a link
+rather than the work. It failed safely — anything it could not inspect was
+marked failed at low confidence and routed to a human — but the demo's happy
+path could not auto-release from a link.
 
-So for `url`, `repo`, `image` and `file` deliverables, the verifier is judging
-a link, not a logo.
+**Now:** `integrations/content/` resolves the deliverable before the
+verifier sees it. Retrieved text is embedded in the prompt inside a
+`<retrieved_content>` boundary; a retrieved image is attached as a
+multimodal image block; and content that could not be opened is reported to
+the model in words, with an explicit instruction that it has not seen the
+work and must fail those criteria.
 
-This fails *safely* — the prompt instructs the model to mark anything it
-cannot inspect as failed with low confidence, which the policy routes to
-`DISPUTED` with the money held. Nothing can be released on evidence the model
-never saw. But it means **the demo's happy path does not auto-release if the
-seller submits a link**, which is exactly what `docs/DEMO.md` scene 3
-currently asks for.
+The URL is attacker-controlled and the request comes from our server, so the
+fetcher is written as a security boundary:
 
-Two ways forward:
+| Guard | Behaviour |
+|---|---|
+| Scheme | http and https only — no `file://`, `data:`, `gopher://` |
+| Address | every hostname resolved and **every** resolved address checked; private, loopback, link-local (incl. `169.254.169.254` metadata), reserved and multicast refused — including IPv4-mapped IPv6 |
+| Redirects | followed manually, at most 3, re-validating each hop so a public URL cannot bounce to metadata |
+| Size | response streamed and cut at `CONTENT_MAX_BYTES`; a truncated image is reported unavailable rather than shown half-decoded |
+| Types | plain text, Markdown, HTML, CSV, JSON, XML and SVG as text; PNG/JPEG/GIF/WebP as images; everything else refused |
+| Failure | never raises — an unreachable, refused or oversized deliverable returns a reason, which routes to a human |
 
-1. **Change the demo** (zero code): the seller submits a `text` deliverable
-   whose content is self-contained — paste the SVG markup rather than a link
-   to it. The verifier then judges real substance, and the happy path works
-   today.
-2. **Close the gap** (roughly half a day): fetch the URL server-side inside
-   the verifier with a size cap, a timeout, a content-type allowlist and
-   SSRF protection (no private ranges), pass text through and attach images
-   as image blocks. This is what the SRS actually describes and it is a much
-   stronger demo — the agent visibly reads the delivered file.
+Retrieved content is treated as *more* hostile than the reference, not less:
+the prompt's untrusted-data boundary explicitly covers "anything retrieved
+from a link they supplied".
 
-Recommended: **(2)**, with (1) as the fallback if time runs short.
+Covered by 57 tests in `tests/unit/test_content_fetcher.py`, plus prompt
+assembly tests, toolbox tests and end-to-end flow tests.
 
 ### Gap 2 — no binary upload (FR-4)
 
@@ -73,8 +77,10 @@ seller links to a file rather than uploading one.
 Deliberate: object storage, access control to the deal's parties, and
 virus/content handling are a day's work that buys nothing the demo shows. The
 `file` and `image` types remain selectable because a seller may legitimately
-be pasting a link to either. Closing Gap 1 would make this gap matter less,
-since the fetched content would be inspected either way.
+be pasting a link to either — and now that Gap 1 is closed, such a link is
+fetched and inspected like any other, so what the verifier sees is the file
+itself either way. What is missing is only the upload mechanism, not the
+inspection.
 
 ### Gap 3 — events are reflected, not pushed (FR-12)
 
@@ -132,6 +138,7 @@ transaction. Five additions to the specced module tree, each with a reason.
 | `services/agent_toolbox.py` | The same doc's read-only tool scope (`read_deal`, `read_criteria`, `read_deliverable`). Routing all agent context through one narrow class is what makes "no agent holds a pay capability" testable |
 | `core/security.py` | JWT and password hashing, kept out of `dependencies.py` so the crypto is unit-testable without FastAPI |
 | `models/sql_enums.py` | A Postgres enum is a database-level type; two tables sharing one needs a single object or the migration tries to `CREATE TYPE` twice |
+| `integrations/content/` | FR-5 requires the verifier to read "text/image/URL/file". A URL is a pointer, so resolving it is an integration with the outside world and belongs behind a Protocol like the others |
 
 ### Endpoints beyond the documented contract
 
@@ -183,8 +190,12 @@ listed as optional or out of scope.
 
 Worth stating plainly before the submission:
 
-- **The agents have never run against a real model.** All 470 backend tests
-  use fakes. `ANTHROPIC_API_KEY` is still unset.
+- **The agents have never run against a real model.** All 542 backend tests
+  use fakes. `ANTHROPIC_API_KEY` is still unset. In particular the multimodal
+  image path has never been exercised against the real API.
+- **No deliverable has ever been fetched from the real internet.** The
+  fetcher's guards are tested against a mock transport, which exercises the
+  real validation code but not real DNS or TLS.
 - **No money has moved in the sandbox.** OAuth, the Payouts scope and Orders
   v2 create are confirmed live; capture, payout and refund have only ever run
   against the in-memory fake.

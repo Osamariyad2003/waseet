@@ -154,11 +154,21 @@ def fake_ai():
     return FakeAIGateway()
 
 
+@pytest.fixture
+def fake_fetcher():
+    """So a test that submits a link never makes a real request."""
+    from tests.fakes import FakeContentFetcher
+
+    return FakeContentFetcher()
+
+
 # --- app client -----------------------------------------------------------
 
 
 @pytest_asyncio.fixture
-async def client(database: str, clean_tables: None, fake_paypal, fake_ai) -> AsyncIterator:
+async def client(
+    database: str, clean_tables: None, fake_paypal, fake_ai, fake_fetcher
+) -> AsyncIterator:
     """An httpx client against the real app, with both gateways faked.
 
     Only the two external dependencies are replaced. Routing, validation,
@@ -167,12 +177,13 @@ async def client(database: str, clean_tables: None, fake_paypal, fake_ai) -> Asy
     """
     from httpx import ASGITransport, AsyncClient
 
-    from app.dependencies import get_ai_gateway, get_paypal_gateway
+    from app.dependencies import get_ai_gateway, get_content_fetcher, get_paypal_gateway
     from app.main import create_app
 
     app = create_app()
     app.dependency_overrides[get_paypal_gateway] = lambda: fake_paypal
     app.dependency_overrides[get_ai_gateway] = lambda: fake_ai
+    app.dependency_overrides[get_content_fetcher] = lambda: fake_fetcher
 
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://waseet.test"

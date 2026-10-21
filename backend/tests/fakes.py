@@ -23,6 +23,7 @@ from app.integrations.ai.interface import (
     MediationRecommendation,
     VerificationJudgment,
 )
+from app.integrations.content.interface import FetchedContent
 from app.integrations.paypal.interface import (
     AccessToken,
     CaptureResult,
@@ -300,4 +301,44 @@ class FakeAIGateway:
             recommendation=self.recommendation,
             reasoning=self.recommendation_reasoning,
             suggested_seller_amount=self.suggested_seller_amount,
+        )
+
+
+@dataclass
+class FakeContentFetcher:
+    """Implements `ContentFetcher` without touching the network.
+
+    Defaults to returning readable text, so an integration test that submits
+    a link exercises the same path a real fetch would — the verifier sees
+    retrieved content, not a URL.
+    """
+
+    text: str | None = "A vector logo file: <svg>...</svg>"
+    image_base64: str | None = None
+    media_type: str | None = "text/plain"
+    unavailable_reason: str | None = None
+    truncated: bool = False
+
+    fetched: list[str] = field(default_factory=list)
+
+    async def fetch(self, url: str) -> FetchedContent:
+        self.fetched.append(url)
+
+        if self.unavailable_reason is not None:
+            return FetchedContent.unavailable(self.unavailable_reason, url)
+
+        if self.image_base64 is not None:
+            return FetchedContent(
+                kind="image",
+                source_url=url,
+                image_base64=self.image_base64,
+                media_type=self.media_type or "image/png",
+            )
+
+        return FetchedContent(
+            kind="text",
+            source_url=url,
+            text=self.text,
+            media_type=self.media_type,
+            truncated=self.truncated,
         )

@@ -93,6 +93,9 @@ class AnthropicAIGateway:
 
         content = (deliverable.content_ref or "")[:MAX_DELIVERABLE_CHARS]
         try:
+            inspected = deliverable.inspected
+            has_image = inspected is not None and inspected.kind == "image"
+
             result = await self._call_tool(
                 system=prompts.VERIFIER_SYSTEM,
                 user=prompts.verifier_user_message(
@@ -103,9 +106,28 @@ class AnthropicAIGateway:
                     deliverable.type,
                     content,
                     deliverable.note,
+                    fetched_text=(
+                        (inspected.text or "")[:MAX_DELIVERABLE_CHARS]
+                        if inspected is not None and inspected.kind == "text"
+                        else None
+                    ),
+                    fetched_truncated=bool(inspected and inspected.truncated),
+                    unavailable_reason=(
+                        inspected.reason
+                        if inspected is not None and inspected.kind == "unavailable"
+                        else None
+                    ),
+                    has_image=has_image,
                 ),
                 tool=prompts.VERIFIER_TOOL,
                 what="verify the deliverable",
+                # The retrieved image goes alongside the prompt, so the
+                # verifier looks at the logo instead of reading its URL.
+                image=(
+                    (inspected.media_type or "", inspected.image_base64 or "")
+                    if has_image and inspected is not None
+                    else None
+                ),
             )
         except AIError as exc:
             logger.warning("ai.verification_unavailable", error=str(exc))
@@ -285,9 +307,19 @@ class AnthropicAIGateway:
     # --- plumbing ---------------------------------------------------------
 
     async def _call_tool(
-        self, *, system: str, user: str, tool: dict[str, Any], what: str
+        self,
+        *,
+        system: str,
+        user: str,
+        tool: dict[str, Any],
+        what: str,
+        image: tuple[str, str] | None = None,
     ) -> dict[str, Any]:
         """Force a tool call and return its validated input.
+
+        `image` is an optional (media_type, base64) pair sent as an image
+        block — how a retrieved logo or screenshot actually reaches the
+        multimodal verifier.
 
         One retry on a transient error. Raises AIError when the result is
         still unusable — callers decide whether that surfaces or becomes
@@ -296,6 +328,8 @@ class AnthropicAIGateway:
         if not self._settings.ai_configured:
             raise AIError("the AI provider is not configured; set ANTHROPIC_API_KEY")
 
+        content = _message_content(user, image)
+
         last_error: str | None = None
         for attempt in range(1, MAX_ATTEMPTS + 1):
             try:
@@ -303,7 +337,7 @@ class AnthropicAIGateway:
                     model=self._model,
                     max_tokens=MAX_TOKENS,
                     system=system,
-                    messages=[{"role": "user", "content": user}],
+                    messages=[{"role": "user", "content": content}],
                     tools=[tool],
                     tool_choice={"type": "tool", "name": tool["name"]},
                 )
@@ -328,6 +362,26 @@ class AnthropicAIGateway:
     @staticmethod
     def _money(amount: Decimal) -> str:
         return f"{amount:.2f}"
+
+
+def _message_content(user: str, image: tuple[str, str] | None) -> Any:
+    """A plain string, or text plus an image block when there is one to show.
+
+    The image goes *after* the text, so the instructions and the data
+    boundary are established before the model sees the attachment.
+    """
+    if image is None:
+        return user
+    media_type, data = image
+    if not media_type or not data:
+        return user
+    return [
+        {"type": "text", "text": user},
+        {
+            "type": "image",
+            "source": {"type": "base64", "media_type": media_type, "data": data},
+        },
+    ]
 
 
 def _is_transient_status(status_code: int) -> bool:

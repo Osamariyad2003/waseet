@@ -43,6 +43,7 @@ from app.integrations.ai.interface import (
     CriterionJudgment,
     VerificationJudgment,
 )
+from app.integrations.content.interface import ContentFetcher
 from app.models.deal import Deal
 from app.models.verification import VerificationReport
 from app.repositories.audit_repo import AuditRepository
@@ -131,6 +132,7 @@ class VerificationService:
         audit_repo: AuditRepository,
         settlement: SettlementService,
         ai: AIGateway,
+        fetcher: ContentFetcher | None = None,
     ) -> None:
         self._session = session
         self._settings = settings
@@ -140,6 +142,7 @@ class VerificationService:
         self._audit = audit_repo
         self._settlement = settlement
         self._ai = ai
+        self._fetcher = fetcher
 
     async def verify(self, *, deal_id: uuid.UUID, user_id: uuid.UUID) -> VerificationResult:
         deal = await self._deals.get_for_update(deal_id)
@@ -208,6 +211,7 @@ class VerificationService:
             deal_id=deal.id,
             deal_repo=self._deals,
             deliverable_repo=self._deliverables,
+            fetcher=self._fetcher,
         )
         agent_deliverable = await toolbox.read_deliverable()
         if agent_deliverable is None:  # pragma: no cover — guarded above
