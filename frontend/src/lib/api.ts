@@ -62,15 +62,37 @@ export class ApiError extends Error {
   }
 }
 
-/** In memory, deliberately: see `src/lib/session.ts`. */
+/** Where a restored session is mirrored. See `hooks/use-session.tsx`. */
+export const TOKEN_STORAGE_KEY = "waseet.token";
+
 let authToken: string | null = null;
 
 export function setAuthToken(token: string | null): void {
   authToken = token;
+  tokenCleared = token === null;
 }
 
+/** True once the app has deliberately signed out, so a stale mirrored token
+ * is not resurrected from storage on the next request. */
+let tokenCleared = false;
+
+/**
+ * The bearer token for the next request.
+ *
+ * Falls back to the mirrored copy in sessionStorage, because on a fresh page
+ * load a component's first query can fire before the session provider's
+ * effect has installed the in-memory token — which would show an
+ * authentication error to someone who is perfectly well signed in.
+ */
 export function getAuthToken(): string | null {
-  return authToken;
+  if (authToken) return authToken;
+  if (tokenCleared || typeof window === "undefined") return null;
+  try {
+    authToken = window.sessionStorage.getItem(TOKEN_STORAGE_KEY);
+    return authToken;
+  } catch {
+    return null;
+  }
 }
 
 interface RequestOptions {
@@ -84,7 +106,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   const headers: Record<string, string> = { Accept: "application/json" };
   if (body !== undefined) headers["Content-Type"] = "application/json";
-  if (authToken) headers.Authorization = `Bearer ${authToken}`;
+  const token = getAuthToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
 
   let response: Response;
   try {

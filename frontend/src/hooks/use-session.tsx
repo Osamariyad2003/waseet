@@ -22,10 +22,10 @@ import {
   useState,
 } from "react";
 
-import { api, setAuthToken } from "@/lib/api";
+import { TOKEN_STORAGE_KEY, api, setAuthToken } from "@/lib/api";
 import type { User } from "@/lib/types";
 
-const TOKEN_KEY = "waseet.token";
+const TOKEN_KEY = TOKEN_STORAGE_KEY;
 const USER_KEY = "waseet.user";
 
 interface SessionValue {
