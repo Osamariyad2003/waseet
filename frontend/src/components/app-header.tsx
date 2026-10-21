@@ -22,20 +22,20 @@ export function AppHeader({ locale }: { locale: string }) {
   };
 
   return (
-    <header className="border-b border-border-subtle bg-surface">
+    <header className="bg-accent text-white">
       <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
         <Link
           href={`/${locale}/deals`}
-          className="flex items-baseline gap-2 font-semibold text-ink"
+          className="flex items-baseline gap-2 font-semibold text-white"
         >
           {t("app.name")}
-          <span className="text-xs font-normal text-ink-faint">{t("app.tagline")}</span>
+          <span className="text-xs font-normal text-white/70">{t("app.tagline")}</span>
         </Link>
 
         <div className="ms-auto flex items-center gap-3">
           {/* Sandbox is stated in the chrome, so nobody watching the demo
               wonders whether real money is moving. */}
-          <span className="hidden rounded-full bg-status-returned-soft px-2.5 py-1 text-xs font-medium text-status-returned sm:inline">
+          <span className="hidden rounded-full bg-white/15 px-2.5 py-1 text-xs font-medium text-white sm:inline">
             {t("app.sandboxNotice")}
           </span>
 
@@ -49,8 +49,8 @@ export function AppHeader({ locale }: { locale: string }) {
                 className={cn(
                   "rounded px-2 py-1 text-xs font-medium uppercase transition-colors",
                   activeLocale === option
-                    ? "bg-accent-soft text-accent"
-                    : "text-ink-faint hover:text-ink",
+                    ? "bg-white text-accent"
+                    : "text-white/70 hover:text-white",
                 )}
               >
                 {option}
@@ -65,7 +65,7 @@ export function AppHeader({ locale }: { locale: string }) {
                 signOut();
                 router.replace(`/${locale}/login`);
               }}
-              className="text-sm text-ink-muted hover:text-ink"
+              className="text-sm text-white/80 hover:text-white"
             >
               {t("nav.signOut")}
             </button>

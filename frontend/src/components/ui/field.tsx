@@ -47,8 +47,9 @@ export function Field({ label, hint, error, children }: FieldProps) {
 }
 
 const control =
-  "w-full rounded-lg border bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-ink-faint " +
-  "aria-[invalid=true]:border-status-attention border-border-subtle";
+  "w-full rounded-[--radius-control] border border-border-subtle bg-surface px-3.5 py-3 " +
+  "text-sm text-ink transition-colors placeholder:text-ink-faint " +
+  "focus:border-accent aria-[invalid=true]:border-status-attention";
 
 export function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input className={cn(control, className)} {...props} />;

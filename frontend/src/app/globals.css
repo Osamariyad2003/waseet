@@ -12,40 +12,53 @@
 */
 
 @theme {
-  --color-canvas: oklch(99% 0.004 250);
-  --color-surface: oklch(100% 0 0);
-  --color-surface-muted: oklch(97% 0.006 250);
-  --color-border-subtle: oklch(91% 0.008 250);
-  --color-ink: oklch(23% 0.015 260);
-  --color-ink-muted: oklch(52% 0.014 260);
-  --color-ink-faint: oklch(66% 0.012 260);
+  /* Surface and ink come from the Communal Payments design file: a soft grey
+     canvas with white sheets floating on it, and warm-grey text rather than
+     near-black. */
+  --color-canvas: #f8f8fa;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f3f8;
+  --color-border-subtle: #ccd2e3;
+  --color-ink: #2e3344;
+  --color-ink-muted: #474a56;
+  --color-ink-faint: #8a8a8a;
 
-  /* The one accent. */
-  --color-accent: oklch(52% 0.17 258);
-  --color-accent-hover: oklch(46% 0.17 258);
-  --color-accent-soft: oklch(96% 0.025 258);
+  /* The one accent: the file's primary navy, with its lighter supporting
+     blue for the hero band. */
+  --color-accent: #334d8f;
+  --color-accent-hover: #2a4078;
+  --color-accent-soft: #eef1f9;
+  --color-accent-bright: #4060b2;
 
-  /* Status roles, per the design direction:
+  /* Status roles, per the design direction. These are the product's spine
+     and keep their meanings — the restyle retunes them to sit with the navy,
+     it does not reassign them:
        FUNDED / DRAFT          held / pending     neutral blue
        VERIFYING / DELIVERED   in progress        muted accent
        RELEASED / SPLIT        paid out           green
        REFUNDED                returned           amber
        DISPUTED                needs attention    red          */
-  --color-status-held: oklch(54% 0.13 245);
-  --color-status-held-soft: oklch(96% 0.025 245);
-  --color-status-progress: oklch(58% 0.12 285);
-  --color-status-progress-soft: oklch(96% 0.025 285);
-  --color-status-paid: oklch(52% 0.14 155);
-  --color-status-paid-soft: oklch(95% 0.04 155);
-  --color-status-returned: oklch(66% 0.14 75);
-  --color-status-returned-soft: oklch(96% 0.05 85);
-  --color-status-attention: oklch(55% 0.19 25);
-  --color-status-attention-soft: oklch(96% 0.03 25);
+  --color-status-held: #4060b2;
+  --color-status-held-soft: #eef1f9;
+  --color-status-progress: #6366bb;
+  --color-status-progress-soft: #eff0fa;
+  --color-status-paid: #1b8f63;
+  --color-status-paid-soft: #e7f5ef;
+  /* The file's own orange and red. */
+  --color-status-returned: #c77400;
+  --color-status-returned-soft: #fff3e3;
+  --color-status-attention: #e23c3c;
+  --color-status-attention-soft: #ffecec;
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-arabic: var(--font-arabic), ui-sans-serif, system-ui, sans-serif;
 
-  --radius-card: 0.875rem;
+  /* Generous radii, as in the file. */
+  --radius-card: 1rem;
+  --radius-control: 0.625rem;
+
+  /* One soft lift for sheets sitting on the canvas. */
+  --shadow-sheet: 0 1px 2px rgba(46, 51, 68, 0.04), 0 8px 24px rgba(46, 51, 68, 0.06);
 }
 
 @layer base {
