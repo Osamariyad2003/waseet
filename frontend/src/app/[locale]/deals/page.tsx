@@ -11,7 +11,9 @@ import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/field";
 import { useDeals } from "@/hooks/use-deals";
 import { useRequireSession } from "@/hooks/use-session";
+import { statusStyle } from "@/lib/status";
 import { DEAL_STATES, type DealState } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 export default function DealsPage() {
   const t = useTranslations();
@@ -93,15 +95,29 @@ export default function DealsPage() {
           ) : null}
         </Card>
       ) : (
-        <ul className="space-y-3">
-          {data.map((deal) => (
-            <li key={deal.id}>
-              <Link
-                href={`/${locale}/deals/${deal.id}`}
-                className="block rounded-card border border-border-subtle bg-surface p-4 transition-colors hover:bg-surface-muted sm:p-5"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
+        // A sheet of rows, after the design file's "Latest payments" list: a
+        // status glyph in a soft circle on the lead, title + time, then the
+        // amount and state trailing.
+        <ul className="divide-y divide-border-subtle/70 overflow-hidden rounded-card border border-border-subtle/60 bg-surface shadow-sheet">
+          {data.map((deal) => {
+            const style = statusStyle(deal.state);
+            return (
+              <li key={deal.id}>
+                <Link
+                  href={`/${locale}/deals/${deal.id}`}
+                  className="flex items-center gap-3 p-4 transition-colors hover:bg-surface-muted sm:gap-4 sm:p-5"
+                >
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "flex size-10 shrink-0 items-center justify-center rounded-full text-base font-semibold",
+                      style.badge,
+                    )}
+                  >
+                    {style.glyph}
+                  </span>
+
+                  <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-ink">{deal.title}</p>
                     <p className="mt-0.5 text-xs text-ink-faint">
                       {format.dateTime(new Date(deal.updated_at), {
@@ -112,14 +128,15 @@ export default function DealsPage() {
                       })}
                     </p>
                   </div>
-                  <div className="flex items-center gap-3">
+
+                  <div className="flex shrink-0 flex-col items-end gap-1">
                     <MoneyAmount amount={deal.amount} currency={deal.currency} />
                     <StatusBadge state={deal.state} />
                   </div>
-                </div>
-              </Link>
-            </li>
-          ))}
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
@@ -128,12 +145,19 @@ export default function DealsPage() {
 
 function ListSkeleton() {
   return (
-    <ul className="space-y-3" aria-busy="true">
+    <ul
+      className="divide-y divide-border-subtle/70 overflow-hidden rounded-card border border-border-subtle/60 bg-surface shadow-sheet"
+      aria-busy="true"
+    >
       {[0, 1, 2].map((index) => (
-        <li
-          key={index}
-          className="h-[86px] animate-pulse rounded-card border border-border-subtle bg-surface"
-        />
+        <li key={index} className="flex items-center gap-4 p-4 sm:p-5">
+          <span className="size-10 shrink-0 animate-pulse rounded-full bg-surface-muted" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-40 animate-pulse rounded bg-surface-muted" />
+            <div className="h-3 w-24 animate-pulse rounded bg-surface-muted" />
+          </div>
+          <div className="h-5 w-16 animate-pulse rounded bg-surface-muted" />
+        </li>
       ))}
     </ul>
   );

@@ -189,19 +189,31 @@ function DealHero({ deal }: { deal: DealWithTimeline }) {
         </AnimatePresence>
       </div>
 
-      <dl className="mt-5 grid grid-cols-2 gap-4 border-t border-border-subtle pt-4 text-sm sm:grid-cols-3">
-        <div>
-          <dt className="text-xs text-ink-faint">{t("deal.buyer")}</dt>
-          <dd className="truncate text-ink">{deal.buyer.full_name || deal.buyer.email}</dd>
+      {/* Label/value rows, divider-separated, after the file's "Payment
+          details" section: uppercase faint labels over the value. */}
+      <dl className="mt-5 divide-y divide-border-subtle border-t border-border-subtle text-sm">
+        <div className="flex items-baseline justify-between gap-4 py-2.5">
+          <dt className="text-xs font-medium uppercase tracking-wide text-ink-faint">
+            {t("deal.buyer")}
+          </dt>
+          <dd className="truncate text-end text-ink">
+            {deal.buyer.full_name || deal.buyer.email}
+          </dd>
         </div>
-        <div>
-          <dt className="text-xs text-ink-faint">{t("deal.seller")}</dt>
-          <dd className="truncate text-ink">{deal.seller.full_name || deal.seller.email}</dd>
+        <div className="flex items-baseline justify-between gap-4 py-2.5">
+          <dt className="text-xs font-medium uppercase tracking-wide text-ink-faint">
+            {t("deal.seller")}
+          </dt>
+          <dd className="truncate text-end text-ink">
+            {deal.seller.full_name || deal.seller.email}
+          </dd>
         </div>
         {deal.platform_fee && Number(deal.platform_fee) > 0 ? (
-          <div>
-            <dt className="text-xs text-ink-faint">{t("deal.platformFee")}</dt>
-            <dd className="tabular text-ink">
+          <div className="flex items-baseline justify-between gap-4 py-2.5">
+            <dt className="text-xs font-medium uppercase tracking-wide text-ink-faint">
+              {t("deal.platformFee")}
+            </dt>
+            <dd className="tabular text-end text-ink">
               {deal.platform_fee} {deal.currency}
             </dd>
           </div>
@@ -301,10 +313,14 @@ function FundingCard({
     deal.criteria.every((c) => c.confirmed_by_buyer && c.confirmed_by_seller);
 
   return (
-    <Card>
-      <CardTitle>{t("funding.title")}</CardTitle>
-      <CardSubtitle>{t("funding.subtitle")}</CardSubtitle>
-      <div className="mt-5">
+    // The one place money is paid in, so it carries the file's navy payment
+    // header to set it apart from the rest of the page.
+    <div className="overflow-hidden rounded-card border border-border-subtle/60 bg-surface shadow-sheet">
+      <div className="bg-accent px-5 py-4 text-white sm:px-6">
+        <h2 className="text-base font-semibold">{t("funding.title")}</h2>
+        <p className="mt-1 text-sm leading-relaxed text-white/80">{t("funding.subtitle")}</p>
+      </div>
+      <div className="p-5 sm:p-6">
         <PayPalCheckoutButton
           dealId={deal.id}
           onFunded={onFunded}
@@ -312,7 +328,7 @@ function FundingCard({
           disabledReason={!bothConfirmed ? t("funding.notConfirmed") : undefined}
         />
       </div>
-    </Card>
+    </div>
   );
 }
 
