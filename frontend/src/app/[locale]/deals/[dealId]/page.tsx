@@ -33,7 +33,7 @@ import {
 import { useRequireSession } from "@/hooks/use-session";
 import { ApiError } from "@/lib/api";
 import { statusStyle } from "@/lib/status";
-import type { DealWithTimeline, Role } from "@/lib/types";
+import { TERMINAL_STATES, type DealWithTimeline, type Role } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export default function DealPage() {
@@ -82,6 +82,8 @@ export default function DealPage() {
       <Link href={`/${locale}/deals`} className="text-sm text-ink-muted hover:text-ink">
         ← {t("common.back")}
       </Link>
+
+      <OutcomeConfirmation deal={deal} />
 
       <DealHero deal={deal} />
 
@@ -138,6 +140,64 @@ export default function DealPage() {
         </div>
       </Card>
     </div>
+  );
+}
+
+/**
+ * The resolution moment, after the design file's success screen: a coloured
+ * band with a white circle and the state's glyph, confirming the outcome.
+ *
+ * Shown only for terminal states. The band is navy — the file's own
+ * treatment, and the honest one: a completed refund is a resolution, not a
+ * warning, so the chrome stays calm and the outcome is carried by the
+ * circle's coloured glyph (green release, amber refund) and the title. Navy
+ * also keeps white text well above the contrast floor, which amber would
+ * not. The payout batch or refund id is surfaced here because this is the
+ * point the money actually moved.
+ */
+function OutcomeConfirmation({ deal }: { deal: DealWithTimeline }) {
+  const t = useTranslations();
+  if (!TERMINAL_STATES.includes(deal.state)) return null;
+
+  const style = statusStyle(deal.state);
+  const reference = deal.payout_batch_id || deal.refund_id;
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 8, scale: 0.99 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+      aria-label={t(`confirmation.${deal.state}.title`)}
+      className="overflow-hidden rounded-card shadow-sheet"
+    >
+      <div className="bg-accent px-6 py-8 text-center text-white">
+        <motion.span
+          initial={{ scale: 0.6, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.1, type: "spring", stiffness: 260, damping: 18 }}
+          aria-hidden
+          className={cn(
+            "mx-auto flex size-16 items-center justify-center rounded-full bg-white text-2xl font-bold",
+            style.text,
+          )}
+        >
+          {style.glyph}
+        </motion.span>
+        <h2 className="mt-4 text-lg font-semibold">
+          {t(`confirmation.${deal.state}.title`)}
+        </h2>
+        <p className="mt-1 text-sm text-white/85">{t(`confirmation.${deal.state}.detail`)}</p>
+      </div>
+
+      {reference ? (
+        <div className="flex items-center justify-between gap-4 bg-surface px-6 py-3 text-sm">
+          <span className="text-xs font-medium uppercase tracking-wide text-ink-faint">
+            {t("timeline.paypalReference")}
+          </span>
+          <span className="tabular truncate font-medium text-ink-muted">{reference}</span>
+        </div>
+      ) : null}
+    </motion.section>
   );
 }
 

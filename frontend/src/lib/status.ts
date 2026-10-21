@@ -17,6 +17,8 @@ interface StatusStyle {
   badge: string;
   /** A solid dot for timelines. */
   dot: string;
+  /** The role's text colour on its own, for a glyph on a white circle. */
+  text: string;
   /** Soft surface for panels. */
   surface: string;
   /** A shape cue that survives greyscale. */
@@ -27,26 +29,31 @@ const STYLES: Record<StatusRole, Omit<StatusStyle, "role" | "glyph">> = {
   held: {
     badge: "bg-status-held-soft text-status-held ring-status-held/20",
     dot: "bg-status-held",
+    text: "text-status-held",
     surface: "bg-status-held-soft border-status-held/20",
   },
   progress: {
     badge: "bg-status-progress-soft text-status-progress ring-status-progress/20",
     dot: "bg-status-progress",
+    text: "text-status-progress",
     surface: "bg-status-progress-soft border-status-progress/20",
   },
   paid: {
     badge: "bg-status-paid-soft text-status-paid ring-status-paid/20",
     dot: "bg-status-paid",
+    text: "text-status-paid",
     surface: "bg-status-paid-soft border-status-paid/20",
   },
   returned: {
     badge: "bg-status-returned-soft text-status-returned ring-status-returned/25",
     dot: "bg-status-returned",
+    text: "text-status-returned",
     surface: "bg-status-returned-soft border-status-returned/25",
   },
   attention: {
     badge: "bg-status-attention-soft text-status-attention ring-status-attention/20",
     dot: "bg-status-attention",
+    text: "text-status-attention",
     surface: "bg-status-attention-soft border-status-attention/20",
   },
 };

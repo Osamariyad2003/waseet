@@ -30,6 +30,20 @@
     "DISPUTED": "A human reviewer is deciding",
     "SPLIT": "Part paid out, remainder returned"
   },
+  "confirmation": {
+    "RELEASED": {
+      "title": "Funds released",
+      "detail": "The full amount was paid out to the seller."
+    },
+    "REFUNDED": {
+      "title": "Buyer refunded",
+      "detail": "The full amount was returned to the buyer."
+    },
+    "SPLIT": {
+      "title": "Deal split",
+      "detail": "Part was paid to the seller and the rest returned to the buyer."
+    }
+  },
   "login": {
     "title": "Sign in",
     "subtitle": "Escrow that pays out when the work is actually done.",
