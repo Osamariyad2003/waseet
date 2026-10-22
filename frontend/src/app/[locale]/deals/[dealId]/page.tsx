@@ -78,7 +78,7 @@ export default function DealPage() {
   const isReviewer = viewerRole === "reviewer";
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-3xl space-y-5">
       <Link href={`/${locale}/deals`} className="text-sm text-ink-muted hover:text-ink">
         ← {t("common.back")}
       </Link>

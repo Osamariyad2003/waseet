@@ -29,8 +29,28 @@ export function AppHeader({ locale }: { locale: string }) {
           className="flex items-baseline gap-2 font-semibold text-white"
         >
           {t("app.name")}
-          <span className="text-xs font-normal text-white/70">{t("app.tagline")}</span>
+          <span className="hidden text-xs font-normal text-white/70 sm:inline">
+            {t("app.tagline")}
+          </span>
         </Link>
+
+        {/* A reviewer has an operations dashboard; the parties do not. */}
+        {user?.role === "reviewer" ? (
+          <nav className="flex items-center gap-1 text-sm">
+            <Link
+              href={`/${locale}/dashboard`}
+              className="rounded px-2 py-1 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              {t("dashboard.title")}
+            </Link>
+            <Link
+              href={`/${locale}/deals`}
+              className="rounded px-2 py-1 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              {t("dashboard.reviewQueue")}
+            </Link>
+          </nav>
+        ) : null}
 
         <div className="ms-auto flex items-center gap-3">
           {/* Sandbox is stated in the chrome, so nobody watching the demo

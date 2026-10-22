@@ -31,9 +31,10 @@ export default async function LocaleLayout({
         <NextIntlClientProvider messages={messages}>
           <Providers>
             <AppHeader locale={locale} />
-            <main className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-10">
-              {children}
-            </main>
+            {/* The width constraint lives on each page, not here: the deal
+                timeline stays narrow (max-w-3xl) while the reviewer
+                dashboard goes wide (max-w-6xl). */}
+            <main className="w-full px-4 py-6 sm:px-6 sm:py-10">{children}</main>
           </Providers>
         </NextIntlClientProvider>
       </body>

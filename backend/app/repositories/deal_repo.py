@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Sequence
+from decimal import Decimal
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -88,6 +89,27 @@ class DealRepository:
             .options(selectinload(Deal.criteria))
         )
         return result.unique().scalars().all()
+
+    async def list_all(self) -> Sequence[Deal]:
+        """Every deal, newest first — the reviewer's admin grid reads this."""
+        result = await self._session.execute(
+            select(Deal).order_by(Deal.updated_at.desc()).options(selectinload(Deal.criteria))
+        )
+        return result.unique().scalars().all()
+
+    async def state_totals(self) -> dict[DealState, tuple[int, Decimal]]:
+        """Count and summed amount per state, for the dashboard's stat tiles.
+
+        Aggregated in one query rather than loading every deal. Amounts are
+        summed as-is; mixing currencies is out of scope (single currency per
+        deployment in this prototype), so the caller reports the dominant one.
+        """
+        result = await self._session.execute(
+            select(Deal.state, func.count(), func.coalesce(func.sum(Deal.amount), 0)).group_by(
+                Deal.state
+            )
+        )
+        return {row[0]: (int(row[1]), Decimal(row[2])) for row in result.all()}
 
     # --- acceptance criteria ---------------------------------------------
 

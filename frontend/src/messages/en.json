@@ -254,5 +254,23 @@
     "contentRequired": "Add the link or content you are delivering",
     "reasonRequired": "Say why, so the other party and the reviewer can read it",
     "sellerAmountRange": "Must be more than 0 and less than the deal amount"
+  },
+  "dashboard": {
+    "title": "Operations dashboard",
+    "reviewQueue": "Dispute queue",
+    "heldInEscrow": "Held in escrow",
+    "openDisputes": "Open disputes",
+    "released": "Released",
+    "refunded": "Refunded",
+    "allDeals": "All deals",
+    "noDeals": "No deals yet.",
+    "loadFailed": "Could not load the dashboard."
+  },
+  "grid": {
+    "deal": "Deal",
+    "parties": "Buyer → Seller",
+    "amount": "Amount",
+    "state": "State",
+    "updated": "Updated"
   }
 }

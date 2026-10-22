@@ -18,6 +18,7 @@ import type {
   DeliverableType,
   LoginResponse,
   MediationRecommendation,
+  ReviewerOverview,
   ResolveDisputeResponse,
   SettlementAction,
   User,
@@ -178,6 +179,9 @@ export const api = {
 
   // --- funding ------------------------------------------------------------
   getClientToken: () => request<ClientTokenResponse>("/paypal/client-token"),
+
+  // --- reviewer dashboard -------------------------------------------------
+  getReviewerOverview: () => request<ReviewerOverview>("/reviewer/overview"),
 
   createOrder: (dealId: string) =>
     request<CreateOrderResponse>(`/deals/${dealId}/order`, { method: "POST" }),

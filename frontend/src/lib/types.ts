@@ -160,6 +160,26 @@ export interface ResolveDisputeResponse {
   already_settled: boolean;
 }
 
+export interface StatTile {
+  key: string;
+  count: number;
+  amount: string;
+  currency: string;
+}
+
+export interface DealSummaryWithParties extends DealSummary {
+  buyer: User;
+  seller: User;
+}
+
+export interface ReviewerOverview {
+  held_in_escrow: StatTile;
+  open_disputes: StatTile;
+  released: StatTile;
+  refunded: StatTile;
+  deals: DealSummaryWithParties[];
+}
+
 /** The error envelope every failure uses. */
 export interface ApiErrorBody {
   error: {

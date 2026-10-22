@@ -81,7 +81,7 @@ export default function NewDealPage() {
     : undefined;
 
   return (
-    <div className="space-y-4">
+    <div className="mx-auto max-w-3xl space-y-4">
       <Link href={`/${locale}/deals`} className="text-sm text-ink-muted hover:text-ink">
         ← {t("common.back")}
       </Link>

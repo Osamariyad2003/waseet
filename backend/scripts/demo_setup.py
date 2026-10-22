@@ -64,8 +64,9 @@ async def main() -> int:
             return 1
 
         # Reset every deal (accounts are kept).
-        from app.database import dispose_engine, get_session_factory
         from sqlalchemy import text
+
+        from app.database import dispose_engine, get_session_factory
 
         async with get_session_factory()() as session:
             await session.execute(

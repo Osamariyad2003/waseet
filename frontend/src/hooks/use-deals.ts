@@ -22,6 +22,7 @@ import type {
   DealWithTimeline,
   DeliverableType,
   MediationRecommendation,
+  ReviewerOverview,
   SettlementAction,
   VerificationReport,
 } from "@/lib/types";
@@ -33,6 +34,7 @@ export const dealKeys = {
   audit: (dealId: string) => ["deals", "audit", dealId] as const,
   verification: (dealId: string) => ["deals", "verification", dealId] as const,
   recommendation: (dealId: string) => ["deals", "recommendation", dealId] as const,
+  reviewerOverview: ["reviewer", "overview"] as const,
 };
 
 /** Retry transport failures, never a 4xx — a 409 means the deal moved on,
@@ -97,6 +99,17 @@ export function useRecommendation(
     retry: retryPolicy,
   });
 }
+
+export function useReviewerOverview(): UseQueryResult<ReviewerOverview> {
+  return useQuery({
+    queryKey: dealKeys.reviewerOverview,
+    queryFn: () => api.getReviewerOverview(),
+    retry: retryPolicy,
+    // The dashboard is a live operations view, so keep it fresh.
+    refetchInterval: 15000,
+  });
+}
+
 
 /** Refetch everything that describes one deal. */
 function useDealInvalidator(dealId: string) {

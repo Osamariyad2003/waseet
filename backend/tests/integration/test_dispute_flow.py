@@ -371,3 +371,45 @@ class TestTheMediatorSeesTheDetail:
 
         assert captured["verification"].failed_criteria_count == expected
         assert expected > 0
+
+
+class TestReviewerDashboard:
+    """The reviewer's admin overview: KPI tiles over every deal."""
+
+    async def test_the_overview_aggregates_held_and_disputed(
+        self, client, tokens, deal_payload, fake_ai
+    ):
+        # One disputed deal; one still funded.
+        await disputed_deal(client, tokens, deal_payload, fake_ai)
+        funded = await create_deal(client, tokens, deal_payload)
+        await confirm_both(client, tokens, funded["id"])
+        await fund(client, tokens, funded["id"])
+
+        response = await client.get("/reviewer/overview", headers=auth(tokens["reviewer"]))
+        assert response.status_code == 200
+        body = response.json()
+
+        # Both deals are held in escrow; one is disputed.
+        assert body["held_in_escrow"]["count"] == 2
+        assert body["open_disputes"]["count"] == 1
+        assert len(body["deals"]) == 2
+        # The grid carries party names so the reviewer can scan.
+        assert body["deals"][0]["buyer"]["email"]
+        assert body["deals"][0]["seller"]["email"]
+
+    async def test_a_party_cannot_see_the_overview(self, client, tokens, deal_payload):
+        for role in ("buyer", "seller"):
+            response = await client.get("/reviewer/overview", headers=auth(tokens[role]))
+            assert response.status_code == 403
+
+    async def test_the_overview_counts_a_release(self, client, tokens, deal_payload, fake_ai):
+        deal = await create_deal(client, tokens, deal_payload)
+        await confirm_both(client, tokens, deal["id"])
+        await fund(client, tokens, deal["id"])
+        await deliver(client, tokens, deal["id"])
+        await client.post(f"/deals/{deal['id']}/verify", headers=auth(tokens["seller"]))
+
+        response = await client.get("/reviewer/overview", headers=auth(tokens["reviewer"]))
+        body = response.json()
+        assert body["released"]["count"] == 1
+        assert body["held_in_escrow"]["count"] == 0

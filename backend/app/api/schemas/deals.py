@@ -135,6 +135,14 @@ class DealSummaryResponse(ORMModel):
     updated_at: datetime
 
 
+class DealSummaryWithParties(DealSummaryResponse):
+    """The grid shows who is on each side, so the reviewer can scan at a
+    glance without opening every deal."""
+
+    buyer: UserResponse
+    seller: UserResponse
+
+
 class AuditEntryResponse(ORMModel):
     id: uuid.UUID
     from_state: DealState | None
@@ -187,6 +195,29 @@ class ClientTokenResponse(BaseModel):
 
     client_token: str
     sdk_url: str
+
+
+# --- reviewer dashboard ----------------------------------------------------
+
+
+class StatTile(BaseModel):
+    """One KPI on the reviewer dashboard."""
+
+    key: str
+    count: int
+    amount: Decimal
+    currency: str
+
+
+class ReviewerOverviewResponse(BaseModel):
+    """Everything the reviewer dashboard needs, in one call: the KPI tiles
+    and every deal for the grid."""
+
+    held_in_escrow: StatTile
+    open_disputes: StatTile
+    released: StatTile
+    refunded: StatTile
+    deals: list[DealSummaryWithParties]
 
 
 class CaptureOrderRequest(BaseModel):

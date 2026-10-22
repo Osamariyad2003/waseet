@@ -45,8 +45,9 @@ export default function LoginPage() {
   const onSubmit = async (values: FormValues) => {
     setFailure(null);
     try {
-      await signIn(values.email, values.password);
-      router.replace(`/${locale}/deals`);
+      const user = await signIn(values.email, values.password);
+      // A reviewer lands on the operations dashboard; a party on their deals.
+      router.replace(`/${locale}/${user.role === "reviewer" ? "dashboard" : "deals"}`);
     } catch (error) {
       if (error instanceof ApiError && error.code === "network_error") {
         setFailure(t("login.unreachable"));

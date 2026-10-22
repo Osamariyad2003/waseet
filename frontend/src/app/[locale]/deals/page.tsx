@@ -33,7 +33,7 @@ export default function DealsPage() {
   const isReviewer = user.role === "reviewer";
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-3xl space-y-5">
       <header className="flex flex-wrap items-center gap-3">
         <h1 className="text-xl font-semibold text-ink">
           {isReviewer ? t("deals.reviewerTitle") : t("deals.title")}

@@ -15,6 +15,7 @@ from app.api.routers import (
     deliverables,
     disputes,
     funding,
+    reviewer,
     verification,
     webhooks,
 )
@@ -93,6 +94,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(deliverables.router)
     app.include_router(verification.router)
     app.include_router(disputes.router)
+    app.include_router(reviewer.router)
     app.include_router(webhooks.router)
 
     @app.get("/health", tags=["meta"])
