@@ -36,3 +36,8 @@ Thumbs.db
 
 # Next.js build output lives under frontend/
 frontend/.next/
+
+# Demo video build artifacts
+video/node_modules/
+video/out/
+video/.remotion/
