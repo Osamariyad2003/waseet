@@ -76,17 +76,29 @@ The API comes up on <http://localhost:8000>, with interactive docs at
 your own. Re-running it is safe — it updates the existing accounts rather than
 duplicating them.
 
-### 3. Frontend
+### 3. The two frontends
+
+Waseet is two independent apps sharing the one backend API:
+
+- **Escrow app** (`frontend/`, port 3000) — buyers and sellers: create, fund,
+  deliver, verify, contest, and the deal timeline.
+- **Admin app** (`admin/`, port 3001) — reviewers: the operations dashboard
+  and dispute resolution.
 
 ```bash
-cd frontend
-npm install
-cp .env.example .env.local
-npm run dev
+cd frontend && npm install && npm run dev      # escrow app on :3000
+cd admin && npm install && npm run dev          # admin app on :3001
 ```
 
-Open <http://localhost:3000>. English and Arabic (RTL) are both live; the
-toggle is in the header.
+Open the escrow app at <http://localhost:3000> and the admin app at
+<http://localhost:3001>. Each is deployable on its own. A reviewer who signs
+in to the escrow app is turned away and pointed at the admin app, and vice
+versa; the backend enforces the role checks server-side. English and Arabic
+(RTL) are live in both; the toggle is in the header.
+
+`CORS_ORIGINS` must list both origins (it does by default:
+`http://localhost:3000,http://localhost:3001`), or the admin app's requests
+are blocked by the browser.
 
 ### 4. Check PayPal before you demo
 
@@ -177,8 +189,10 @@ confidence, and the PayPal reference ids.
 ## Architecture
 
 ```
-frontend/   Next.js (App Router) + TypeScript, Tailwind, TanStack Query,
-            PayPal JS SDK v6, Arabic/English with RTL
+frontend/   Escrow app (buyers & sellers): Next.js (App Router) + TS,
+            Tailwind, TanStack Query, PayPal JS SDK v6, Arabic/English RTL
+admin/      Admin app (reviewers): the operations dashboard + dispute
+            resolution, same stack, its own deployable
 backend/    FastAPI, layered:
 
     api/            HTTP, Pydantic validation, auth — no business logic
@@ -217,7 +231,8 @@ DRAFT ──fund──> FUNDED ──deliver──> DELIVERED ──verify──
 
 ```bash
 cd backend && uv run pytest        # 542 tests
-cd frontend && npm test            # 34 tests
+cd frontend && npm test            # escrow app
+cd admin && npm test               # admin app
 ```
 
 Backend integration tests run against a real Postgres (they create and drop
