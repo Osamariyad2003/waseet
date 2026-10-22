@@ -21,6 +21,7 @@ from app.database import get_db_session
 from app.domain.enums import Role
 from app.domain.errors import NotAuthorizedForDeal
 from app.integrations.ai.client import AnthropicAIGateway
+from app.integrations.ai.gemini import GeminiAIGateway
 from app.integrations.ai.interface import AIGateway
 from app.integrations.ai.stub import StubAIGateway
 from app.integrations.content.client import HttpContentFetcher
@@ -58,12 +59,20 @@ def get_paypal_gateway(request: Request, settings: SettingsDep) -> PayPalGateway
     return gateway
 
 
+def _build_ai_gateway(settings: Settings) -> AIGateway:
+    # The stub exists so the product can be demonstrated without a key.
+    # Settings refuse it in production, so this cannot be reached there.
+    if settings.use_stub_ai:
+        return StubAIGateway()
+    if settings.ai_provider == "gemini":
+        return GeminiAIGateway(settings)
+    return AnthropicAIGateway(settings)
+
+
 def get_ai_gateway(request: Request, settings: SettingsDep) -> AIGateway:
     gateway = getattr(request.app.state, "ai_gateway", None)
     if gateway is None:
-        # The stub exists so the product can be demonstrated without a key.
-        # Settings refuse it in production, so this cannot be reached there.
-        gateway = StubAIGateway() if settings.use_stub_ai else AnthropicAIGateway(settings)
+        gateway = _build_ai_gateway(settings)
         request.app.state.ai_gateway = gateway
     return gateway
 

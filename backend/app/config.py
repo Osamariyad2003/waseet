@@ -40,9 +40,22 @@ class Settings(BaseSettings):
     paypal_timeout_seconds: float = 15.0
 
     # --- AI ---------------------------------------------------------------
-    anthropic_api_key: SecretStr = SecretStr("")
-    ai_model: str = "claude-sonnet-5"
+    # Which provider backs the judgment agents. All three run the same
+    # agent logic and guardrails (app/integrations/ai/base.py); only the API
+    # call differs. USE_STUB_AI overrides this for a keyless demo.
+    ai_provider: Literal["anthropic", "gemini"] = "anthropic"
     ai_timeout_seconds: float = 45.0
+
+    # Anthropic
+    anthropic_api_key: SecretStr = SecretStr("")
+
+    # Gemini (Google)
+    gemini_api_key: SecretStr = SecretStr("")
+    gemini_model: str = "gemini-2.5-flash"
+
+    # The model id used for whichever provider is selected. Left unset, it
+    # defaults to that provider's sensible default.
+    ai_model_override: str = ""
 
     # --- Database ---------------------------------------------------------
     database_url: str = "postgresql+asyncpg://waseet:waseet@localhost:5434/waseet"
@@ -123,7 +136,27 @@ class Settings(BaseSettings):
 
     @property
     def ai_configured(self) -> bool:
+        """Whether the Anthropic provider has a key (kept for the Anthropic
+        gateway and its tests)."""
         return bool(self.anthropic_api_key.get_secret_value())
+
+    @property
+    def gemini_configured(self) -> bool:
+        return bool(self.gemini_api_key.get_secret_value())
+
+    @property
+    def provider_configured(self) -> bool:
+        """Whether the selected provider has credentials."""
+        if self.use_stub_ai:
+            return True
+        return self.gemini_configured if self.ai_provider == "gemini" else self.ai_configured
+
+    @property
+    def ai_model(self) -> str:
+        """The model id for the selected provider, honouring an override."""
+        if self.ai_model_override:
+            return self.ai_model_override
+        return self.gemini_model if self.ai_provider == "gemini" else "claude-sonnet-5"
 
 
 @lru_cache

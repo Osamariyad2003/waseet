@@ -123,8 +123,10 @@ is ever hardcoded, printed, or logged.
 | `PAYPAL_BASE_URL` | `https://api-m.sandbox.paypal.com` |
 | `PAYPAL_SELLER_RECEIVER_EMAIL` | The sandbox **personal** account that receives payouts. Release has nowhere to go without it. |
 | `PAYPAL_WEBHOOK_ID` | From the PayPal dashboard, once you have a public URL. Optional — see Webhooks. |
-| `ANTHROPIC_API_KEY` | The agents. Deal creation fails without it. |
-| `AI_MODEL` | Default `claude-sonnet-5` |
+| `AI_PROVIDER` | `anthropic` or `gemini` — which model backs the agents. Both run the same agent logic and guardrails; only the API call differs. |
+| `ANTHROPIC_API_KEY` | Anthropic key (when `AI_PROVIDER=anthropic`). |
+| `GEMINI_API_KEY` | Google Gemini key (when `AI_PROVIDER=gemini`). |
+| `GEMINI_MODEL` / `AI_MODEL_OVERRIDE` | The model id; defaults per provider (`claude-sonnet-5` / `gemini-2.5-flash`). |
 | `DATABASE_URL` | `postgresql+asyncpg://waseet:waseet@localhost:5434/waseet` |
 | `JWT_SECRET` | Any long random string. Production refuses to boot on the dev default or anything under 32 bytes. |
 | `AUTO_RELEASE_CONFIDENCE_THRESHOLD` | Default `0.8`. The gate between a judgment and a payout. |
