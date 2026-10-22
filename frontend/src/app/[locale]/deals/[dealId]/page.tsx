@@ -8,7 +8,6 @@ import { useState } from "react";
 
 import { CriteriaChecklist } from "@/components/deals/criteria-checklist";
 import { DealTimeline } from "@/components/deals/deal-timeline";
-import { DecisionPanel } from "@/components/deals/decision-panel";
 import { DeliverableUploader } from "@/components/deals/deliverable-uploader";
 import { MoneyAmount } from "@/components/deals/money-amount";
 import { PayPalCheckoutButton } from "@/components/deals/paypal-checkout-button";
@@ -25,8 +24,6 @@ import {
   useConfirmCriteria,
   useContest,
   useDeal,
-  useRecommendation,
-  useResolveDispute,
   useSubmitDeliverable,
   useVerify,
 } from "@/hooks/use-deals";
@@ -75,7 +72,6 @@ export default function DealPage() {
   const viewerRole: Role = user.role;
   const isBuyer = deal.buyer.id === user.id;
   const isSeller = deal.seller.id === user.id;
-  const isReviewer = viewerRole === "reviewer";
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
@@ -87,7 +83,7 @@ export default function DealPage() {
 
       <DealHero deal={deal} />
 
-      <NextStep deal={deal} isBuyer={isBuyer} isSeller={isSeller} isReviewer={isReviewer} />
+      <NextStep deal={deal} isBuyer={isBuyer} isSeller={isSeller} />
 
       {/* DRAFT: confirm the checklist, then fund. */}
       {deal.state === "DRAFT" ? (
@@ -128,10 +124,8 @@ export default function DealPage() {
       {/* The report, once there is one. */}
       <ReportCard deal={deal} isBuyer={isBuyer} />
 
-      {/* DISPUTED: the reviewer decides. */}
-      {deal.state === "DISPUTED" ? (
-        <DisputeCard deal={deal} isReviewer={isReviewer} />
-      ) : null}
+      {/* DISPUTED: a reviewer decides, in the admin app. */}
+      {deal.state === "DISPUTED" ? <DisputeCard deal={deal} /> : null}
 
       <Card>
         <CardTitle>{t("timeline.title")}</CardTitle>
@@ -288,12 +282,10 @@ function NextStep({
   deal,
   isBuyer,
   isSeller,
-  isReviewer,
 }: {
   deal: DealWithTimeline;
   isBuyer: boolean;
   isSeller: boolean;
-  isReviewer: boolean;
 }) {
   const t = useTranslations();
   const bothConfirmed =
@@ -324,7 +316,7 @@ function NextStep({
       key = "verifying";
       break;
     case "DISPUTED":
-      key = isReviewer ? "reviewerAction" : "reviewerDeciding";
+      key = "reviewerDeciding";
       break;
     default:
       key = "done";
@@ -565,45 +557,14 @@ function ContestForm({ dealId }: { dealId: string }) {
   );
 }
 
-function DisputeCard({
-  deal,
-  isReviewer,
-}: {
-  deal: DealWithTimeline;
-  isReviewer: boolean;
-}) {
+// The escrow app is buyer/seller only: a dispute is read-only here, resolved
+// by a reviewer in the admin app.
+function DisputeCard({ deal: _deal }: { deal: DealWithTimeline }) {
   const t = useTranslations();
-  const resolve = useResolveDispute(deal.id);
-  const recommendation = useRecommendation(deal.id, isReviewer);
-
-  if (!isReviewer) {
-    return (
-      <Card className="border-status-attention/20 bg-status-attention-soft">
-        <CardTitle>{t("dispute.title")}</CardTitle>
-        <CardSubtitle>{t("dispute.waitingForReviewer")}</CardSubtitle>
-      </Card>
-    );
-  }
-
   return (
-    <Card>
-      <CardTitle>{t("dispute.reviewerTitle")}</CardTitle>
-      <div className="mt-5">
-        <DecisionPanel
-          dealAmount={deal.amount}
-          currency={deal.currency}
-          recommendation={recommendation.data}
-          isLoadingRecommendation={recommendation.isPending}
-          recommendationError={
-            recommendation.isError ? t("dispute.recommendationFailed") : undefined
-          }
-          onSubmit={async (values) => {
-            await resolve.mutateAsync(values);
-          }}
-          isSubmitting={resolve.isPending}
-          error={resolve.error instanceof ApiError ? resolve.error.message : undefined}
-        />
-      </div>
+    <Card className="border-status-attention/20 bg-status-attention-soft">
+      <CardTitle>{t("dispute.title")}</CardTitle>
+      <CardSubtitle>{t("dispute.waitingForReviewer")}</CardSubtitle>
     </Card>
   );
 }

@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+/*
+  Trust-forward, status-first. Escrow is an anxiety product: both sides are
+  asking "where's my money, and is it safe?". So: calm surfaces, high
+  contrast, generous whitespace, one confident accent, and large legible
+  money numbers.
+
+  The status colours are the design system's spine — every place a state
+  appears reads from these tokens, so a state can never be blue in one view
+  and green in another.
+*/
+
+@theme {
+  /* Surface and ink come from the Communal Payments design file: a soft grey
+     canvas with white sheets floating on it, and warm-grey text rather than
+     near-black. */
+  --color-canvas: #f8f8fa;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f3f8;
+  --color-border-subtle: #ccd2e3;
+  --color-ink: #2e3344;
+  --color-ink-muted: #474a56;
+  --color-ink-faint: #8a8a8a;
+
+  /* The one accent: the file's primary navy, with its lighter supporting
+     blue for the hero band. */
+  --color-accent: #334d8f;
+  --color-accent-hover: #2a4078;
+  --color-accent-soft: #eef1f9;
+  --color-accent-bright: #4060b2;
+
+  /* Status roles, per the design direction. These are the product's spine
+     and keep their meanings — the restyle retunes them to sit with the navy,
+     it does not reassign them:
+       FUNDED / DRAFT          held / pending     neutral blue
+       VERIFYING / DELIVERED   in progress        muted accent
+       RELEASED / SPLIT        paid out           green
+       REFUNDED                returned           amber
+       DISPUTED                needs attention    red          */
+  --color-status-held: #4060b2;
+  --color-status-held-soft: #eef1f9;
+  --color-status-progress: #6366bb;
+  --color-status-progress-soft: #eff0fa;
+  --color-status-paid: #1b8f63;
+  --color-status-paid-soft: #e7f5ef;
+  /* The file's own orange and red. */
+  --color-status-returned: #c77400;
+  --color-status-returned-soft: #fff3e3;
+  --color-status-attention: #e23c3c;
+  --color-status-attention-soft: #ffecec;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-arabic: var(--font-arabic), ui-sans-serif, system-ui, sans-serif;
+
+  /* Generous radii, as in the file. */
+  --radius-card: 1rem;
+  --radius-control: 0.625rem;
+
+  /* One soft lift for sheets sitting on the canvas. */
+  --shadow-sheet: 0 1px 2px rgba(46, 51, 68, 0.04), 0 8px 24px rgba(46, 51, 68, 0.06);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    /* Opt into the browser's own hyphenation/wrapping for Arabic. */
+    text-wrap: pretty;
+  }
+
+  html[lang="ar"] body {
+    font-family: var(--font-arabic);
+  }
+
+  /* Focus is never invisible — keyboard users have to see where they are. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+
+  /* Money and PayPal references read better as tabular digits. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer utilities {
+  /* Honour a reduced-motion preference everywhere, including the release
+     animation, which is the most movement in the app. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

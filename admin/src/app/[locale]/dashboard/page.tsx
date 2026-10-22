@@ -23,10 +23,10 @@ export default function DashboardPage() {
   const router = useRouter();
   const { user, isLoading } = useRequireSession(locale);
 
-  // Only a reviewer has an operations view; a party is sent to their deals.
+  // This platform is reviewers only; anyone else is sent back to sign in.
   useEffect(() => {
     if (!isLoading && user && user.role !== "reviewer") {
-      router.replace(`/${locale}/deals`);
+      router.replace(`/${locale}/login`);
     }
   }, [isLoading, user, router, locale]);
 
@@ -40,9 +40,6 @@ export default function DashboardPage() {
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-ink">{t("dashboard.title")}</h1>
-        <Link href={`/${locale}/deals`} className="text-sm text-ink-muted hover:text-ink">
-          {t("dashboard.reviewQueue")} →
-        </Link>
       </div>
 
       {isPending ? (

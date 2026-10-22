@@ -53,7 +53,8 @@
     "submitting": "Signing in…",
     "failed": "The email or password is incorrect.",
     "unreachable": "Could not reach the Waseet server. Is the backend running?",
-    "demoHint": "Demo accounts are listed in the README."
+    "demoHint": "Demo accounts are listed in the README.",
+    "reviewerElsewhere": "Reviewers use the admin app, not this one."
   },
   "deals": {
     "title": "Your deals",

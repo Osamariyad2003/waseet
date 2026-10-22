@@ -30,33 +30,25 @@ export default function DealsPage() {
     return <ListSkeleton />;
   }
 
-  const isReviewer = user.role === "reviewer";
-
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <header className="flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-semibold text-ink">
-          {isReviewer ? t("deals.reviewerTitle") : t("deals.title")}
-        </h1>
+        <h1 className="text-xl font-semibold text-ink">{t("deals.title")}</h1>
 
         <div className="ms-auto flex items-center gap-2">
-          {/* A reviewer's queue is defined by state, so the filter would
-              only let them empty their own list. */}
-          {!isReviewer ? (
-            <Select
-              aria-label={t("deals.filterAll")}
-              value={stateFilter}
-              onChange={(event) => setStateFilter(event.target.value as DealState | "")}
-              className="h-9 w-auto py-0 text-sm"
-            >
-              <option value="">{t("deals.filterAll")}</option>
-              {DEAL_STATES.map((state) => (
-                <option key={state} value={state}>
-                  {t(`states.${state}`)}
-                </option>
-              ))}
-            </Select>
-          ) : null}
+          <Select
+            aria-label={t("deals.filterAll")}
+            value={stateFilter}
+            onChange={(event) => setStateFilter(event.target.value as DealState | "")}
+            className="h-9 w-auto py-0 text-sm"
+          >
+            <option value="">{t("deals.filterAll")}</option>
+            {DEAL_STATES.map((state) => (
+              <option key={state} value={state}>
+                {t(`states.${state}`)}
+              </option>
+            ))}
+          </Select>
 
           {user.role === "buyer" ? (
             <Link
@@ -86,11 +78,7 @@ export default function DealsPage() {
           </p>
           {!stateFilter ? (
             <p className="mt-1 text-sm text-ink-muted">
-              {isReviewer
-                ? t("deals.emptyReviewer")
-                : user.role === "buyer"
-                  ? t("deals.emptyBuyer")
-                  : t("deals.emptySeller")}
+              {user.role === "buyer" ? t("deals.emptyBuyer") : t("deals.emptySeller")}
             </p>
           ) : null}
         </Card>

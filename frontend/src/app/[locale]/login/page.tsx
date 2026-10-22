@@ -25,7 +25,7 @@ export default function LoginPage() {
   const t = useTranslations();
   const locale = useLocale();
   const router = useRouter();
-  const { signIn, user } = useSession();
+  const { signIn, signOut, user } = useSession();
   const [failure, setFailure] = useState<string | null>(null);
 
   // Already signed in: do not make them sign in twice.
@@ -45,9 +45,15 @@ export default function LoginPage() {
   const onSubmit = async (values: FormValues) => {
     setFailure(null);
     try {
-      const user = await signIn(values.email, values.password);
-      // A reviewer lands on the operations dashboard; a party on their deals.
-      router.replace(`/${locale}/${user.role === "reviewer" ? "dashboard" : "deals"}`);
+      const signedIn = await signIn(values.email, values.password);
+      // The escrow app is for buyers and sellers; a reviewer is turned away
+      // and pointed at the admin app.
+      if (signedIn.role === "reviewer") {
+        signOut();
+        setFailure(t("login.reviewerElsewhere"));
+        return;
+      }
+      router.replace(`/${locale}/deals`);
     } catch (error) {
       if (error instanceof ApiError && error.code === "network_error") {
         setFailure(t("login.unreachable"));

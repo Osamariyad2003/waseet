@@ -1,0 +1,278 @@
+{
+  "app": {
+    "name": "Waseet",
+    "tagline": "Operations console",
+    "sandboxNotice": "PayPal sandbox — no real money moves.",
+    "adminBadge": "Admin"
+  },
+  "nav": {
+    "deals": "Deals",
+    "signOut": "Sign out",
+    "language": "Language",
+    "reviewQueue": "Review queue"
+  },
+  "states": {
+    "DRAFT": "Draft",
+    "FUNDED": "Funded",
+    "DELIVERED": "Delivered",
+    "VERIFYING": "Verifying",
+    "RELEASED": "Released",
+    "REFUNDED": "Refunded",
+    "DISPUTED": "Disputed",
+    "SPLIT": "Split"
+  },
+  "stateMeaning": {
+    "DRAFT": "Waiting for both parties to confirm the checklist",
+    "FUNDED": "Money is held in escrow",
+    "DELIVERED": "The seller has submitted their work",
+    "VERIFYING": "The AI is checking the work against the checklist",
+    "RELEASED": "Paid out to the seller",
+    "REFUNDED": "Returned to the buyer",
+    "DISPUTED": "A human reviewer is deciding",
+    "SPLIT": "Part paid out, remainder returned"
+  },
+  "confirmation": {
+    "RELEASED": {
+      "title": "Funds released",
+      "detail": "The full amount was paid out to the seller."
+    },
+    "REFUNDED": {
+      "title": "Buyer refunded",
+      "detail": "The full amount was returned to the buyer."
+    },
+    "SPLIT": {
+      "title": "Deal split",
+      "detail": "Part was paid to the seller and the rest returned to the buyer."
+    }
+  },
+  "login": {
+    "title": "Sign in",
+    "subtitle": "Reviewer sign-in for the operations console.",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "failed": "The email or password is incorrect.",
+    "unreachable": "Could not reach the Waseet server. Is the backend running?",
+    "demoHint": "Demo accounts are listed in the README.",
+    "notReviewer": "This platform is for reviewers. Buyers and sellers use the escrow app."
+  },
+  "deals": {
+    "title": "Your deals",
+    "reviewerTitle": "Disputes awaiting review",
+    "newDeal": "New deal",
+    "filterAll": "All states",
+    "empty": "No deals yet.",
+    "emptyBuyer": "Create a deal to get started — the AI will draft the acceptance checklist.",
+    "emptySeller": "Nothing here yet. A buyer needs to create a deal naming you as the seller.",
+    "emptyReviewer": "No disputes to review. Nothing is waiting on you.",
+    "emptyFiltered": "No deals in this state.",
+    "loadFailed": "Could not load your deals.",
+    "retry": "Try again",
+    "openDeal": "Open deal"
+  },
+  "create": {
+    "title": "New deal",
+    "subtitle": "Describe the work in plain language. The AI turns it into a checklist both of you confirm before any money moves.",
+    "dealTitle": "Title",
+    "titlePlaceholder": "Coffee shop logo",
+    "sellerEmail": "Seller's email",
+    "description": "What is being delivered?",
+    "descriptionPlaceholder": "Design a logo for a coffee shop, delivered as a vector file with a transparent background.",
+    "descriptionHint": "At least 20 characters. The more concrete you are, the sharper the checklist.",
+    "amount": "Amount",
+    "currency": "Currency",
+    "submit": "Draft the checklist",
+    "submitting": "The AI is drafting the checklist…",
+    "failed": "Could not create the deal.",
+    "aiUnavailable": "The AI could not draft a checklist right now. Nothing was created — try again."
+  },
+  "criteria": {
+    "title": "Acceptance checklist",
+    "subtitle": "Drafted by AI from the description. Both of you confirm it before the deal is funded.",
+    "confirmedByYou": "You confirmed this checklist",
+    "waitingForOther": "Waiting for the other party to confirm",
+    "confirm": "Confirm the checklist",
+    "confirming": "Confirming…",
+    "bothConfirmed": "Both parties confirmed — the deal can be funded.",
+    "buyerConfirmed": "Buyer confirmed",
+    "sellerConfirmed": "Seller confirmed",
+    "notConfirmed": "Not yet confirmed",
+    "empty": "No criteria were drafted for this deal."
+  },
+  "funding": {
+    "title": "Fund the escrow",
+    "subtitle": "Your payment is captured into the platform account and held until the work is verified.",
+    "payWithPayPal": "Pay with PayPal",
+    "preparing": "Preparing checkout…",
+    "capturing": "Confirming your payment…",
+    "funded": "Funded. The money is held in escrow.",
+    "failed": "The payment could not be completed.",
+    "cancelled": "Checkout was cancelled. Nothing was charged.",
+    "notConfirmed": "Both parties must confirm the checklist before funding.",
+    "sdkFailed": "PayPal checkout could not load. Check your connection and try again."
+  },
+  "deliverable": {
+    "title": "Submit your work",
+    "subtitle": "The AI checks this against the confirmed checklist.",
+    "type": "Type",
+    "types": {
+      "url": "Link",
+      "file": "File",
+      "image": "Image",
+      "repo": "Repository",
+      "text": "Text"
+    },
+    "content": "Link or content",
+    "contentPlaceholderUrl": "https://…",
+    "contentPlaceholderText": "Describe or paste what you are delivering.",
+    "note": "Note for the buyer (optional)",
+    "submit": "Submit and verify",
+    "submitting": "Submitting…",
+    "failed": "Could not submit the deliverable.",
+    "submitted": "Submitted on {date}",
+    "waitingForFunding": "The buyer has not funded this deal yet."
+  },
+  "verification": {
+    "title": "Verification report",
+    "verdict": "Verdict",
+    "verdicts": {
+      "pass": "Meets the checklist",
+      "fail": "Does not meet the checklist",
+      "inconclusive": "Could not be determined"
+    },
+    "confidence": "Confidence",
+    "reasoning": "Reasoning",
+    "perCriterion": "Per criterion",
+    "pass": "Met",
+    "fail": "Not met",
+    "decidedByAi": "Decided by AI",
+    "decidedByHuman": "Decided by a human reviewer",
+    "running": "The AI is checking the work",
+    "runningDetail": "This takes a few seconds. The report appears here when it is done.",
+    "advisory": "This verdict is produced by an AI verifier and is advisory. Either party can contest it, and a human reviewer resolves any dispute.",
+    "autoReleased": "Checklist met with high confidence — the funds were released automatically.",
+    "disputed": "This deal went to a human reviewer rather than paying out.",
+    "none": "This deal has not been verified yet.",
+    "loadFailed": "Could not load the verification report.",
+    "contest": "Contest this",
+    "contestTitle": "Contest the delivery",
+    "contestSubtitle": "This opens a dispute. The money stays in escrow and a human reviewer decides.",
+    "contestReason": "Why are you contesting?",
+    "contestSubmit": "Open a dispute",
+    "contestSubmitting": "Opening…",
+    "contestFailed": "Could not open a dispute."
+  },
+  "dispute": {
+    "title": "Dispute",
+    "reviewerTitle": "Resolve this dispute",
+    "recommendation": "AI recommendation",
+    "recommendationLoading": "Asking the mediator…",
+    "recommendationFailed": "Could not get a recommendation. You can still decide.",
+    "advisory": "This is an AI recommendation for the reviewer. The reviewer makes the final decision and only that decision moves money.",
+    "suggestedSplit": "Suggested share for the seller",
+    "decision": "Your decision",
+    "actions": {
+      "release": "Release to seller",
+      "refund": "Refund the buyer",
+      "split": "Split"
+    },
+    "actionHints": {
+      "release": "Pays the full amount to the seller.",
+      "refund": "Returns the full amount to the buyer.",
+      "split": "Pays the seller a part; the rest returns to the buyer."
+    },
+    "sellerAmount": "Amount to the seller",
+    "sellerAmountHint": "Must be more than zero and less than {amount}.",
+    "reasoning": "Your reasoning",
+    "reasoningHint": "Stored on the deal. Both parties can read it.",
+    "submit": "Execute decision",
+    "submitting": "Executing…",
+    "failed": "Could not resolve the dispute.",
+    "resolved": "Resolved: {action}.",
+    "waitingForReviewer": "A human reviewer is looking at this deal.",
+    "outcomeTitle": "Dispute outcome"
+  },
+  "timeline": {
+    "title": "History",
+    "auditTitle": "Audit trail",
+    "empty": "Nothing has happened yet.",
+    "paypalReference": "PayPal reference",
+    "actors": {
+      "buyer": "Buyer",
+      "seller": "Seller",
+      "reviewer": "Reviewer",
+      "system": "System",
+      "ai": "AI",
+      "paypal_webhook": "PayPal"
+    },
+    "loadFailed": "Could not load the history."
+  },
+  "deal": {
+    "amountHeld": "Held in escrow",
+    "amountReleased": "Released to seller",
+    "amountRefunded": "Returned to buyer",
+    "amount": "Amount",
+    "buyer": "Buyer",
+    "seller": "Seller",
+    "platformFee": "Platform fee",
+    "nextStep": "Next step",
+    "nextSteps": {
+      "confirmCriteria": "Confirm the acceptance checklist.",
+      "waitingOtherParty": "Waiting for the other party to confirm the checklist.",
+      "fund": "Fund the escrow to start the work.",
+      "waitingForFunding": "Waiting for the buyer to fund the escrow.",
+      "deliver": "Submit your work for verification.",
+      "waitingForDelivery": "Waiting for the seller to submit their work.",
+      "verifying": "The AI is checking the work.",
+      "reviewerDeciding": "A human reviewer is deciding the outcome.",
+      "reviewerAction": "Review the recommendation and decide.",
+      "done": "This deal is complete."
+    },
+    "loadFailed": "Could not load this deal.",
+    "notFound": "This deal does not exist, or you are not a party to it.",
+    "deliverableTitle": "Deliverable",
+    "viewDeliverable": "Open the deliverable"
+  },
+  "common": {
+    "retry": "Try again",
+    "cancel": "Cancel",
+    "close": "Close",
+    "loading": "Loading…",
+    "errorTitle": "Something went wrong",
+    "unexpected": "An unexpected error occurred.",
+    "required": "This is required",
+    "back": "Back to deals",
+    "copy": "Copy",
+    "copied": "Copied"
+  },
+  "validation": {
+    "emailInvalid": "Enter a valid email address",
+    "titleRequired": "Give the deal a title",
+    "descriptionShort": "Describe the work in at least 20 characters",
+    "amountInvalid": "Enter an amount like 250.00",
+    "amountRange": "The amount must be between 1 and 10,000",
+    "amountDecimals": "Use at most two decimal places",
+    "contentRequired": "Add the link or content you are delivering",
+    "reasonRequired": "Say why, so the other party and the reviewer can read it",
+    "sellerAmountRange": "Must be more than 0 and less than the deal amount"
+  },
+  "dashboard": {
+    "title": "Operations dashboard",
+    "reviewQueue": "Dispute queue",
+    "heldInEscrow": "Held in escrow",
+    "openDisputes": "Open disputes",
+    "released": "Released",
+    "refunded": "Refunded",
+    "allDeals": "All deals",
+    "noDeals": "No deals yet.",
+    "loadFailed": "Could not load the dashboard."
+  },
+  "grid": {
+    "deal": "Deal",
+    "parties": "Buyer → Seller",
+    "amount": "Amount",
+    "state": "State",
+    "updated": "Updated"
+  }
+}

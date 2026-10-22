@@ -41,3 +41,7 @@ frontend/.next/
 video/node_modules/
 video/out/
 video/.remotion/
+
+# Admin app build/deps
+admin/node_modules/
+admin/.next/
