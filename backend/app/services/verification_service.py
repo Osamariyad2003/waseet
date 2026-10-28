@@ -37,6 +37,7 @@ from app.domain.enums import (
     Verdict,
 )
 from app.domain.errors import DealNotFound, NotAuthorizedForDeal, TransitionGuardFailed
+from app.domain.preflight import screen
 from app.domain.state_machine import next_state
 from app.integrations.ai.interface import (
     AIGateway,
@@ -183,6 +184,26 @@ class VerificationService:
 
         criteria = await self._deals.list_criteria(deal.id)
 
+        # 0. Pre-flight intake: a read-only, deterministic screen for injection,
+        # off-platform circumvention and corrupt payloads, before the submission
+        # reaches the verifier. A REJECT routes to a human (via an inconclusive
+        # judgment) and the model is never called on a hostile payload.
+        intake = screen(
+            deal_id=str(deal.id),
+            agreement_summary=deal.description,
+            deliverable_type=deliverable.type.value,
+            content_ref=deliverable.content_ref,
+            note=deliverable.note,
+        )
+        logger.info(
+            "verification.intake_screened",
+            deal_id=str(deal.id),
+            intake_status=intake.status.value,
+            risk_score=intake.risk_score,
+            injection_detected=intake.injection_detected,
+            off_platform_leakage=intake.off_platform_leakage,
+        )
+
         # 1. VERIFYING, committed before the model call so the UI can show it.
         verifying_state = next_state(
             deal.state, TransitionEvent.VERIFICATION_STARTED, deal_transition_context(deal)
@@ -196,40 +217,50 @@ class VerificationService:
             actor=Actor.SYSTEM,
             event=TransitionEvent.VERIFICATION_STARTED.value,
             reason=(
+                f"pre-flight intake {intake.status.value} (risk {intake.risk_score:.2f}); "
                 f"the verifier agent is judging the deliverable against "
                 f"{len(criteria)} confirmed criteria"
+                if intake.proceed_to_verifier
+                else intake.summary()
             ),
         )
         await self._session.commit()
         logger.info("verification.started", deal_id=str(deal.id), criteria=len(criteria))
 
-        # 2-3. Run the agent. Its whole view of the deal comes through the
-        # read-only toolbox: three reads, each returning only the fields the
-        # judgment needs. It never raises — an unusable result arrives as
-        # INCONCLUSIVE, which the policy disputes.
-        toolbox = AgentToolbox(
-            deal_id=deal.id,
-            deal_repo=self._deals,
-            deliverable_repo=self._deliverables,
-            fetcher=self._fetcher,
-        )
-        agent_deliverable = await toolbox.read_deliverable()
-        if agent_deliverable is None:  # pragma: no cover — guarded above
-            raise TransitionGuardFailed("there is no deliverable to verify")
+        if not intake.proceed_to_verifier:
+            # The intake rejected a hostile or corrupt payload. Do not spend a
+            # model call on it; hand it to a human as an inconclusive judgment,
+            # which the deterministic policy disputes. The findings are the
+            # reasoning, so the reviewer sees exactly what was caught.
+            judgment = VerificationJudgment.inconclusive(intake.summary())
+        else:
+            # 2-3. Run the agent. Its whole view of the deal comes through the
+            # read-only toolbox: three reads, each returning only the fields the
+            # judgment needs. It never raises — an unusable result arrives as
+            # INCONCLUSIVE, which the policy disputes.
+            toolbox = AgentToolbox(
+                deal_id=deal.id,
+                deal_repo=self._deals,
+                deliverable_repo=self._deliverables,
+                fetcher=self._fetcher,
+            )
+            agent_deliverable = await toolbox.read_deliverable()
+            if agent_deliverable is None:  # pragma: no cover — guarded above
+                raise TransitionGuardFailed("there is no deliverable to verify")
 
-        confirmed = await toolbox.read_criteria()
-        raw_judgment = await self._ai.verify_deliverable(
-            deal=await toolbox.read_deal(),
-            criteria=confirmed,
-            deliverable=agent_deliverable,
-        )
+            confirmed = await toolbox.read_criteria()
+            raw_judgment = await self._ai.verify_deliverable(
+                deal=await toolbox.read_deal(),
+                criteria=confirmed,
+                deliverable=agent_deliverable,
+            )
 
-        # Reconcile the judgment against the confirmed checklist before it
-        # is allowed anywhere near the policy. This is the trust boundary:
-        # whatever the gateway returns, only findings about criteria both
-        # parties confirmed count, and a criterion nobody reported on is
-        # not an approved one.
-        judgment = reconcile_judgment(raw_judgment, confirmed)
+            # Reconcile the judgment against the confirmed checklist before it
+            # is allowed anywhere near the policy. This is the trust boundary:
+            # whatever the gateway returns, only findings about criteria both
+            # parties confirmed count, and a criterion nobody reported on is
+            # not an approved one.
+            judgment = reconcile_judgment(raw_judgment, confirmed)
 
         # Everything from here commits as one transaction: the report, the
         # policy's state change, the money movement and the audit entries.
