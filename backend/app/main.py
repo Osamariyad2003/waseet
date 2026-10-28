@@ -22,6 +22,7 @@ from app.api.routers import (
     home,
     offers,
     reviewer,
+    terms,
     verification,
     wallet,
     webhooks,
@@ -110,6 +111,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(funding.router)
     app.include_router(deliverables.router)
     app.include_router(verification.router)
+    app.include_router(terms.router)
     app.include_router(disputes.router)
     app.include_router(reviewer.router)
     app.include_router(webhooks.router)

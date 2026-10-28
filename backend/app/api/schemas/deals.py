@@ -132,6 +132,30 @@ class VerificationResultResponse(BaseModel):
     )
 
 
+# --- deal terms acknowledgment ---------------------------------------------
+
+
+class DealTermsResponse(BaseModel):
+    """An honest, hash-pinned summary of the agreed terms. Not a binding legal
+    instrument and not a rights waiver — see `rights_notice`."""
+
+    deal_id: uuid.UUID
+    amount: Decimal
+    currency: str
+    criteria: list[str]
+    canonical_checklist: str
+    checklist_sha256: str
+    buyer_confirmed: bool
+    seller_confirmed: bool
+    both_confirmed: bool
+    process_steps: list[str]
+    rights_notice: str
+    advisory_notice: str = (
+        "The AI verdict is advisory. Either party can contest it, and a human "
+        "reviewer resolves any dispute."
+    )
+
+
 # --- proof-of-escrow certificate -------------------------------------------
 
 

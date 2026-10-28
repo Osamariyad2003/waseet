@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { CriteriaChecklist } from "@/components/deals/criteria-checklist";
+import { DealTermsCard } from "@/components/deals/deal-terms-card";
 import { DealTimeline } from "@/components/deals/deal-timeline";
 import { DeliverableUploader } from "@/components/deals/deliverable-uploader";
 import { MilestonesSection } from "@/components/deals/milestones-section";
@@ -141,6 +142,9 @@ export default function DealPage() {
 
       {/* DISPUTED: a reviewer decides, in the admin app. */}
       {deal.state === "DISPUTED" ? <DisputeCard deal={deal} /> : null}
+
+      {/* The agreed terms, hash-pinned to the confirmed checklist. */}
+      <DealTermsCard dealId={deal.id} />
 
       {/* Live PayPal money trail — order, capture, payouts, refund — each
           read from PayPal. Renders once there is anything to show. */}

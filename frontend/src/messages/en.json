@@ -465,6 +465,16 @@
       }
     }
   },
+  "terms": {
+    "title": "Agreed terms",
+    "subtitle": "What both parties agreed to, pinned to the confirmed checklist.",
+    "buyer": "Buyer confirmed",
+    "seller": "Seller confirmed",
+    "checklist": "The checklist",
+    "fingerprint": "Checklist fingerprint",
+    "howItWorks": "How it works",
+    "loadFailed": "Could not load the terms."
+  },
   "certificate": {
     "title": "Proof of Escrow",
     "sandbox": "PayPal sandbox",

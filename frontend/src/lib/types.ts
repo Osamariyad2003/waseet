@@ -97,6 +97,21 @@ export interface CriterionFinding {
   note: string;
 }
 
+export interface DealTerms {
+  deal_id: string;
+  amount: string;
+  currency: string;
+  criteria: string[];
+  canonical_checklist: string;
+  checklist_sha256: string;
+  buyer_confirmed: boolean;
+  seller_confirmed: boolean;
+  both_confirmed: boolean;
+  process_steps: string[];
+  rights_notice: string;
+  advisory_notice: string;
+}
+
 export type IntakeStatus = "PASS" | "FLAGGED" | "REJECT";
 
 export interface IntakeFinding {

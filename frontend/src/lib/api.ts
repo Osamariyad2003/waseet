@@ -13,6 +13,7 @@ import type {
   CatalogProduct,
   Certificate,
   ClientTokenResponse,
+  DealTerms,
   CreateOrderResponse,
   Deal,
   DealState,
@@ -186,6 +187,8 @@ export const api = {
     request<Deal>(`/deals/${dealId}/criteria/confirm`, { method: "POST" }),
 
   getAudit: (dealId: string) => request<DealWithTimeline["timeline"]>(`/deals/${dealId}/audit`),
+
+  getTerms: (dealId: string) => request<DealTerms>(`/deals/${dealId}/terms`),
 
   getPayouts: (dealId: string) => request<PayoutView[]>(`/deals/${dealId}/payouts`),
 
