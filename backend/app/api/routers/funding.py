@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, BackgroundTasks, status
 
 from app.api.schemas.deals import (
     CaptureOrderRequest,
@@ -12,7 +12,13 @@ from app.api.schemas.deals import (
     CreateOrderResponse,
     DealResponse,
 )
-from app.dependencies import CurrentUserDep, DealServiceDep, PayPalDep, SettingsDep
+from app.dependencies import (
+    CurrentUserDep,
+    DealServiceDep,
+    NotificationsDep,
+    PayPalDep,
+    SettingsDep,
+)
 
 router = APIRouter(tags=["funding"])
 
@@ -62,10 +68,14 @@ async def capture_order(
     payload: CaptureOrderRequest,
     user: CurrentUserDep,
     service: DealServiceDep,
+    notifications: NotificationsDep,
+    background: BackgroundTasks,
 ) -> DealResponse:
     """Capture the approved order into the platform account — the deal
     becomes FUNDED and the money is held in escrow."""
     deal = await service.capture_order(
         deal_id=deal_id, user_id=user.id, order_id=payload.paypal_order_id
     )
+    # Email the seller that work can begin, after the response is sent.
+    background.add_task(notifications.deal_funded, deal)
     return DealResponse.model_validate(deal)

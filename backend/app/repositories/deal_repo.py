@@ -16,6 +16,7 @@ from sqlalchemy.orm import selectinload
 
 from app.domain.enums import DealState
 from app.models.deal import AcceptanceCriterion, Deal
+from app.models.milestone import Milestone
 
 
 class DealRepository:
@@ -52,7 +53,9 @@ class DealRepository:
         if deal is not None:
             # Relationships are loaded separately: FOR UPDATE and an outer
             # join to a nullable side do not mix on Postgres.
-            await self._session.refresh(deal, ["criteria", "deliverables", "verification_reports"])
+            await self._session.refresh(
+                deal, ["criteria", "deliverables", "verification_reports", "milestones"]
+            )
         return deal
 
     async def get_by_order_id(self, order_id: str) -> Deal | None:
@@ -111,6 +114,17 @@ class DealRepository:
         )
         return {row[0]: (int(row[1]), Decimal(row[2])) for row in result.all()}
 
+    async def state_totals_for_user(
+        self, user_id: uuid.UUID
+    ) -> dict[DealState, tuple[int, Decimal]]:
+        """Count and summed amount per state for deals the user is a party to."""
+        result = await self._session.execute(
+            select(Deal.state, func.count(), func.coalesce(func.sum(Deal.amount), 0))
+            .where(or_(Deal.buyer_id == user_id, Deal.seller_id == user_id))
+            .group_by(Deal.state)
+        )
+        return {row[0]: (int(row[1]), Decimal(row[2])) for row in result.all()}
+
     # --- acceptance criteria ---------------------------------------------
 
     def add_criteria(self, deal_id: uuid.UUID, texts: Sequence[str]) -> list[AcceptanceCriterion]:
@@ -136,3 +150,69 @@ class DealRepository:
             .where(AcceptanceCriterion.deal_id == deal_id)
         )
         return int(result.scalar_one())
+
+    def add_milestone_criteria(
+        self, deal_id: uuid.UUID, milestone_id: uuid.UUID, texts: Sequence[str]
+    ) -> list[AcceptanceCriterion]:
+        """Criteria scoped to one milestone. `position` is global across the
+        deal so the confirmed checklist keeps a stable order."""
+        criteria = [
+            AcceptanceCriterion(
+                deal_id=deal_id, milestone_id=milestone_id, text=text, position=position
+            )
+            for position, text in enumerate(texts)
+        ]
+        self._session.add_all(criteria)
+        return criteria
+
+    async def list_milestone_criteria(
+        self, milestone_id: uuid.UUID
+    ) -> Sequence[AcceptanceCriterion]:
+        result = await self._session.execute(
+            select(AcceptanceCriterion)
+            .where(AcceptanceCriterion.milestone_id == milestone_id)
+            .order_by(AcceptanceCriterion.position)
+        )
+        return result.scalars().all()
+
+    # --- milestones -------------------------------------------------------
+
+    def add_milestone(
+        self,
+        *,
+        deal_id: uuid.UUID,
+        position: int,
+        title: str,
+        description: str,
+        amount: Decimal,
+        state: DealState = DealState.DRAFT,
+    ) -> Milestone:
+        milestone = Milestone(
+            deal_id=deal_id,
+            position=position,
+            title=title,
+            description=description,
+            amount=amount,
+            state=state,
+        )
+        self._session.add(milestone)
+        return milestone
+
+    async def get_milestone(self, milestone_id: uuid.UUID) -> Milestone | None:
+        result = await self._session.execute(
+            select(Milestone).where(Milestone.id == milestone_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_milestone_for_update(self, milestone_id: uuid.UUID) -> Milestone | None:
+        """Lock one milestone row for the settling transaction."""
+        result = await self._session.execute(
+            select(Milestone).where(Milestone.id == milestone_id).with_for_update()
+        )
+        return result.scalar_one_or_none()
+
+    async def list_milestones(self, deal_id: uuid.UUID) -> Sequence[Milestone]:
+        result = await self._session.execute(
+            select(Milestone).where(Milestone.deal_id == deal_id).order_by(Milestone.position)
+        )
+        return result.scalars().all()

@@ -26,6 +26,10 @@ class VerificationReport(UUIDPrimaryKeyMixin, Base):
     deal_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("deals.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    # Null on a simple deal; set when the report is for a milestone.
+    milestone_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("milestones.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     deliverable_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("deliverables.id", ondelete="SET NULL"), nullable=True
     )
@@ -44,3 +48,9 @@ class VerificationReport(UUIDPrimaryKeyMixin, Base):
     )
 
     deal = relationship("Deal", back_populates="verification_reports")
+    milestone = relationship(
+        "Milestone",
+        back_populates="verification_reports",
+        foreign_keys=[milestone_id],
+        viewonly=True,
+    )

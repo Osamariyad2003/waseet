@@ -28,7 +28,10 @@ from app.integrations.paypal.interface import (
     AccessToken,
     CaptureResult,
     OrderResult,
+    PayoutItemStatus,
     PayoutResult,
+    PayoutStatus,
+    ReferenceStatus,
     RefundResult,
     WebhookHeaders,
 )
@@ -213,6 +216,60 @@ class FakePayPalGateway:
             refund_id=refund_id, status="COMPLETED", amount=amount, currency=currency
         )
 
+    async def get_payout_status(self, *, payout_batch_id: str) -> PayoutStatus:
+        for payout in self.payouts:
+            if payout["payout_batch_id"] == payout_batch_id:
+                return PayoutStatus(
+                    payout_batch_id=payout_batch_id,
+                    batch_status="SUCCESS",
+                    amount=payout["amount"],
+                    currency=payout["currency"],
+                    time_created="2026-01-01T00:00:00Z",
+                    items=(
+                        PayoutItemStatus(
+                            transaction_id=f"TX-{payout_batch_id}",
+                            transaction_status="SUCCESS",
+                            amount=payout["amount"],
+                            currency=payout["currency"],
+                            receiver=payout["receiver_email"],
+                        ),
+                    ),
+                )
+        raise PayPalError(f"unknown payout batch {payout_batch_id}")
+
+    async def get_order_status(self, *, order_id: str) -> ReferenceStatus:
+        order = self.orders.get(order_id)
+        if order is None:
+            raise PayPalError(f"unknown order {order_id}")
+        return ReferenceStatus(
+            reference_id=order_id,
+            status="COMPLETED" if order.get("captured") else "CREATED",
+            amount=order["amount"],
+            currency=order["currency"],
+        )
+
+    async def get_capture_status(self, *, capture_id: str) -> ReferenceStatus:
+        capture = self.captures.get(capture_id)
+        if capture is None:
+            raise PayPalError(f"unknown capture {capture_id}")
+        return ReferenceStatus(
+            reference_id=capture_id,
+            status="COMPLETED",
+            amount=capture["amount"],
+            currency=capture["currency"],
+        )
+
+    async def get_refund_status(self, *, refund_id: str) -> ReferenceStatus:
+        for refund in self.refunds:
+            if refund["refund_id"] == refund_id:
+                return ReferenceStatus(
+                    reference_id=refund_id,
+                    status="COMPLETED",
+                    amount=refund["amount"],
+                    currency=refund["currency"],
+                )
+        raise PayPalError(f"unknown refund {refund_id}")
+
     async def verify_webhook(
         self, *, headers: WebhookHeaders, event_body: dict[str, Any], webhook_id: str
     ) -> bool:
@@ -346,3 +403,21 @@ class FakeContentFetcher:
             media_type=self.media_type,
             truncated=self.truncated,
         )
+
+
+@dataclass
+class FakeEmailGateway:
+    """Records the emails it was asked to send, so a test can assert that the
+    right notification reached the right party — without touching SMTP."""
+
+    sent: list = field(default_factory=list)
+
+    async def send(self, message) -> bool:
+        self.sent.append(message)
+        return True
+
+    def to_someone(self, address: str) -> bool:
+        return any(address in msg.to for msg in self.sent)
+
+    def subjects(self) -> list[str]:
+        return [msg.subject for msg in self.sent]

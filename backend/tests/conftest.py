@@ -165,12 +165,20 @@ def fake_fetcher():
     return FakeContentFetcher()
 
 
+@pytest.fixture
+def email_spy():
+    """Records notification emails instead of sending them."""
+    from tests.fakes import FakeEmailGateway
+
+    return FakeEmailGateway()
+
+
 # --- app client -----------------------------------------------------------
 
 
 @pytest_asyncio.fixture
 async def client(
-    database: str, clean_tables: None, fake_paypal, fake_ai, fake_fetcher
+    database: str, clean_tables: None, fake_paypal, fake_ai, fake_fetcher, email_spy
 ) -> AsyncIterator:
     """An httpx client against the real app, with both gateways faked.
 
@@ -180,13 +188,19 @@ async def client(
     """
     from httpx import ASGITransport, AsyncClient
 
-    from app.dependencies import get_ai_gateway, get_content_fetcher, get_paypal_gateway
+    from app.dependencies import (
+        get_ai_gateway,
+        get_content_fetcher,
+        get_email_gateway,
+        get_paypal_gateway,
+    )
     from app.main import create_app
 
     app = create_app()
     app.dependency_overrides[get_paypal_gateway] = lambda: fake_paypal
     app.dependency_overrides[get_ai_gateway] = lambda: fake_ai
     app.dependency_overrides[get_content_fetcher] = lambda: fake_fetcher
+    app.dependency_overrides[get_email_gateway] = lambda: email_spy
 
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://waseet.test"

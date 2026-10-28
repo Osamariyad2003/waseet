@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     paypal_webhook_id: str = ""
     paypal_seller_receiver_email: str = ""
     paypal_timeout_seconds: float = 15.0
+    # A sandbox access token supplied directly — the same one the PayPal AI
+    # Toolkit mints into ~/.claude/settings.json. When set, the server uses it
+    # for REST calls instead of doing its own OAuth exchange; it cannot be
+    # refreshed, so on a 401 the client falls back to the client id/secret.
+    paypal_sandbox_access_token: SecretStr = SecretStr("")
 
     # --- AI ---------------------------------------------------------------
     # Which provider backs the judgment agents. All three run the same
@@ -51,7 +56,7 @@ class Settings(BaseSettings):
 
     # Gemini (Google)
     gemini_api_key: SecretStr = SecretStr("")
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-3.8-flash"
 
     # The model id used for whichever provider is selected. Left unset, it
     # defaults to that provider's sensible default.
@@ -77,6 +82,26 @@ class Settings(BaseSettings):
     content_fetch_timeout_seconds: float = 10.0
     content_max_bytes: int = 5_000_000
     content_max_text_chars: int = 20_000
+
+    # --- Email notifications ----------------------------------------------
+    # Real email on lifecycle events. Off by default; with a Gmail address and
+    # an App Password (not the account password) it sends through Gmail SMTP.
+    # Disabled, the console gateway just logs what would have been sent.
+    email_enabled: bool = False
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: SecretStr = SecretStr("")
+    smtp_from: str = ""
+    smtp_starttls: bool = True
+    # Used to build links back into the app from an email.
+    app_base_url: str = "http://localhost:3000"
+
+    # --- Channel3 product catalog -----------------------------------------
+    # Powers "Shop & Escrow": search a real product catalog to start a deal
+    # from. Without a key, a small stub catalog stands in so the demo works.
+    channel3_api_key: SecretStr = SecretStr("")
+    channel3_base_url: str = "https://api.trychannel3.com/v1"
 
     # --- Dev affordances --------------------------------------------------
     enable_webhook_simulator: bool = False
@@ -133,6 +158,30 @@ class Settings(BaseSettings):
     @property
     def paypal_configured(self) -> bool:
         return bool(self.paypal_client_id and self.paypal_client_secret.get_secret_value())
+
+    @property
+    def paypal_token_configured(self) -> bool:
+        """Whether a ready-made sandbox access token was supplied."""
+        return bool(self.paypal_sandbox_access_token.get_secret_value())
+
+    @property
+    def email_configured(self) -> bool:
+        """Whether Gmail SMTP has enough to actually send."""
+        return bool(
+            self.email_enabled
+            and self.smtp_host
+            and self.smtp_username
+            and self.smtp_password.get_secret_value()
+        )
+
+    @property
+    def email_from_address(self) -> str:
+        return self.smtp_from.strip() or self.smtp_username.strip()
+
+    @property
+    def catalog_configured(self) -> bool:
+        """Whether a real Channel3 key is set; otherwise the stub stands in."""
+        return bool(self.channel3_api_key.get_secret_value().strip())
 
     @property
     def ai_configured(self) -> bool:

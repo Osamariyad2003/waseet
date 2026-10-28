@@ -46,6 +46,7 @@ class AgentToolbox:
         deal_repo: DealRepository,
         deliverable_repo: DeliverableRepository,
         fetcher: ContentFetcher | None = None,
+        milestone_id: uuid.UUID | None = None,
     ) -> None:
         self._deal_id = deal_id
         self._deals = deal_repo
@@ -53,6 +54,10 @@ class AgentToolbox:
         # Read-only too: it retrieves what the seller already published. It
         # cannot write anywhere, and it refuses internal addresses.
         self._fetcher = fetcher
+        # When set, every read is scoped to this milestone: its own checklist,
+        # its own deliverable, its own slice of the amount. A milestone's
+        # verification never sees another milestone's work.
+        self._milestone_id = milestone_id
 
     @property
     def deal_id(self) -> uuid.UUID:
@@ -62,11 +67,20 @@ class AgentToolbox:
         """The deal's terms: description, amount, currency.
 
         Deliberately not the parties, the PayPal ids or the state — none of
-        that helps judge a deliverable, so none of it is sent.
+        that helps judge a deliverable, so none of it is sent. For a
+        milestone, the terms are the milestone's own description and slice.
         """
         deal = await self._deals.get(self._deal_id)
         if deal is None:
             raise DealNotFound("no such deal")
+        if self._milestone_id is not None:
+            milestone = await self._deals.get_milestone(self._milestone_id)
+            if milestone is None:
+                raise DealNotFound("no such milestone")
+            description = milestone.description or milestone.title or deal.description
+            return DealContext(
+                description=description, amount=milestone.amount, currency=deal.currency
+            )
         return DealContext(description=deal.description, amount=deal.amount, currency=deal.currency)
 
     async def read_criteria(self) -> tuple[tuple[str, str], ...]:
@@ -75,7 +89,10 @@ class AgentToolbox:
         The ids let the verifier report per criterion, and let the caller
         discard any id the model invents.
         """
-        criteria = await self._deals.list_criteria(self._deal_id)
+        if self._milestone_id is not None:
+            criteria = await self._deals.list_milestone_criteria(self._milestone_id)
+        else:
+            criteria = await self._deals.list_criteria(self._deal_id)
         return tuple((str(criterion.id), criterion.text) for criterion in criteria)
 
     async def read_deliverable(self) -> DeliverableContext | None:
@@ -92,7 +109,10 @@ class AgentToolbox:
         instructions to judge it, never obey it; see
         `integrations/ai/prompts.py`.
         """
-        deliverable = await self._deliverables.get_latest(self._deal_id)
+        if self._milestone_id is not None:
+            deliverable = await self._deliverables.get_latest_for_milestone(self._milestone_id)
+        else:
+            deliverable = await self._deliverables.get_latest(self._deal_id)
         if deliverable is None:
             return None
 

@@ -24,6 +24,10 @@ class Deliverable(UUIDPrimaryKeyMixin, Base):
     deal_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("deals.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    # Null on a simple deal; set when the deliverable is for a milestone.
+    milestone_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("milestones.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     type: Mapped[DeliverableType] = mapped_column(deliverable_type_enum, nullable=False)
     content_ref: Mapped[str] = mapped_column(Text, nullable=False)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -32,3 +36,6 @@ class Deliverable(UUIDPrimaryKeyMixin, Base):
     )
 
     deal = relationship("Deal", back_populates="deliverables")
+    milestone = relationship(
+        "Milestone", back_populates="deliverables", foreign_keys=[milestone_id], viewonly=True
+    )

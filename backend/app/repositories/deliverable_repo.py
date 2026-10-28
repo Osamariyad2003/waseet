@@ -23,10 +23,26 @@ class DeliverableRepository:
         type_: DeliverableType,
         content_ref: str,
         note: str | None = None,
+        milestone_id: uuid.UUID | None = None,
     ) -> Deliverable:
-        deliverable = Deliverable(deal_id=deal_id, type=type_, content_ref=content_ref, note=note)
+        deliverable = Deliverable(
+            deal_id=deal_id,
+            milestone_id=milestone_id,
+            type=type_,
+            content_ref=content_ref,
+            note=note,
+        )
         self._session.add(deliverable)
         return deliverable
+
+    async def get_latest_for_milestone(self, milestone_id: uuid.UUID) -> Deliverable | None:
+        result = await self._session.execute(
+            select(Deliverable)
+            .where(Deliverable.milestone_id == milestone_id)
+            .order_by(Deliverable.submitted_at.desc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
 
     async def get_latest(self, deal_id: uuid.UUID) -> Deliverable | None:
         """The submission a verification judges: the most recent one."""

@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, BackgroundTasks, status
 
 from app.api.schemas.deals import DeliverableResponse, SubmitDeliverableRequest
-from app.dependencies import CurrentUserDep, DealServiceDep
+from app.dependencies import CurrentUserDep, DealServiceDep, NotificationsDep
 
 router = APIRouter(prefix="/deals", tags=["deliverables"])
 
@@ -22,6 +22,8 @@ async def submit_deliverable(
     payload: SubmitDeliverableRequest,
     user: CurrentUserDep,
     service: DealServiceDep,
+    notifications: NotificationsDep,
+    background: BackgroundTasks,
 ) -> DeliverableResponse:
     """The seller submits their work; the deal moves to DELIVERED.
 
@@ -35,4 +37,7 @@ async def submit_deliverable(
         content_ref=payload.content_ref,
         note=payload.note,
     )
+    # Email the buyer that work was submitted, after the response is sent.
+    deal = await service.get_deal_for_party(deal_id=deal_id, user_id=user.id)
+    background.add_task(notifications.deliverable_submitted, deal)
     return DeliverableResponse.model_validate(deliverable)

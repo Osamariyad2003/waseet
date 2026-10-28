@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 
 from app.api.schemas.deals import (
     ContestRequest,
@@ -12,14 +12,24 @@ from app.api.schemas.deals import (
     VerificationReportResponse,
     VerificationResultResponse,
 )
-from app.dependencies import CurrentUserDep, DealServiceDep, VerificationServiceDep
+from app.dependencies import (
+    CurrentUserDep,
+    DealServiceDep,
+    NotificationsDep,
+    VerificationServiceDep,
+)
+from app.domain.enums import DealState
 
 router = APIRouter(prefix="/deals", tags=["verification"])
 
 
 @router.post("/{deal_id}/verify", response_model=VerificationResultResponse)
 async def verify(
-    deal_id: uuid.UUID, user: CurrentUserDep, service: VerificationServiceDep
+    deal_id: uuid.UUID,
+    user: CurrentUserDep,
+    service: VerificationServiceDep,
+    notifications: NotificationsDep,
+    background: BackgroundTasks,
 ) -> VerificationResultResponse:
     """Run the verifier agent, then the decision policy.
 
@@ -28,6 +38,11 @@ async def verify(
     happened and why.
     """
     result = await service.verify(deal_id=deal_id, user_id=user.id)
+    # Email both parties the outcome, after the response is sent.
+    if result.released:
+        background.add_task(notifications.released, result.deal)
+    elif result.deal.state is DealState.DISPUTED:
+        background.add_task(notifications.disputed, result.deal)
     return VerificationResultResponse(
         report=VerificationReportResponse.model_validate(result.report),
         state=result.deal.state,

@@ -270,7 +270,7 @@ class TestConfiguration:
         settings = Settings(
             ai_provider="gemini", database_url="sqlite+aiosqlite:///:memory:"
         )
-        assert settings.ai_model == "gemini-2.5-flash"
+        assert settings.ai_model == "gemini-3.8-flash"
         assert settings.provider_configured is False  # no key yet
 
     def test_an_override_wins(self):

@@ -69,9 +69,21 @@ class Deal(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         cascade="all, delete-orphan",
         order_by="VerificationReport.decided_at",
     )
+    milestones = relationship(
+        "Milestone",
+        back_populates="deal",
+        cascade="all, delete-orphan",
+        order_by="Milestone.position",
+        lazy="selectin",
+    )
 
     def is_party(self, user_id: uuid.UUID) -> bool:
         return user_id in (self.buyer_id, self.seller_id)
+
+    @property
+    def is_milestone_based(self) -> bool:
+        """A deal split into milestones settles per milestone, not as a whole."""
+        return bool(self.milestones)
 
 
 class AcceptanceCriterion(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
@@ -83,12 +95,19 @@ class AcceptanceCriterion(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     deal_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("deals.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    # Null on a simple deal; set when the criterion belongs to a milestone.
+    milestone_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("milestones.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     text: Mapped[str] = mapped_column(Text, nullable=False)
     position: Mapped[int] = mapped_column(nullable=False, default=0)
     confirmed_by_buyer: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     confirmed_by_seller: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     deal = relationship("Deal", back_populates="criteria")
+    milestone = relationship(
+        "Milestone", back_populates="criteria", foreign_keys=[milestone_id], viewonly=True
+    )
 
     @property
     def is_confirmed(self) -> bool:

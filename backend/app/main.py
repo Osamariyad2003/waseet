@@ -10,18 +10,26 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routers import (
+    account,
     auth,
+    catalog,
+    certificate,
     deals,
     deliverables,
     disputes,
+    explore,
     funding,
+    home,
+    offers,
     reviewer,
     verification,
+    wallet,
     webhooks,
 )
 from app.config import Settings, get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging
+from app.core.request_logging import RequestLoggingMiddleware
 from app.database import dispose_engine
 
 logger = structlog.get_logger(__name__)
@@ -85,17 +93,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    # Added last so it is the outermost layer: every request is logged start to
+    # finish, and its request id is bound for all logs beneath it.
+    app.add_middleware(RequestLoggingMiddleware)
 
     register_exception_handlers(app)
 
     app.include_router(auth.router)
+    app.include_router(home.router)
     app.include_router(deals.router)
+    app.include_router(explore.router)
+    app.include_router(wallet.router)
+    app.include_router(account.router)
+    app.include_router(offers.router)
+    app.include_router(catalog.router)
     app.include_router(funding.router)
     app.include_router(deliverables.router)
     app.include_router(verification.router)
     app.include_router(disputes.router)
     app.include_router(reviewer.router)
     app.include_router(webhooks.router)
+    app.include_router(certificate.router)
 
     @app.get("/health", tags=["meta"])
     async def health() -> dict[str, str]:

@@ -60,3 +60,19 @@ def split_batch_id(deal_id: uuid.UUID) -> str:
 def split_refund_request_id(deal_id: uuid.UUID) -> str:
     """PayPal-Request-Id for the buyer's remainder in a split."""
     return f"{PREFIX}-split-refund-{deal_id}"
+
+
+def milestone_release_batch_id(milestone_id: uuid.UUID) -> str:
+    """sender_batch_id for one milestone's release payout.
+
+    Keyed on the milestone id, not the deal, so each milestone of a deal gets
+    its own stable key and a replay of one milestone's release cannot collide
+    with another's.
+    """
+    return f"{PREFIX}-ms-release-{milestone_id}"
+
+
+def milestone_refund_request_id(milestone_id: uuid.UUID) -> str:
+    """PayPal-Request-Id for one milestone's refund (a partial refund of the
+    deal's single capture)."""
+    return f"{PREFIX}-ms-refund-{milestone_id}"

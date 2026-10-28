@@ -29,9 +29,11 @@ class VerificationRepository:
         per_criterion: list[dict[str, Any]],
         decided_by: DecidedBy,
         recommendation: str | None = None,
+        milestone_id: uuid.UUID | None = None,
     ) -> VerificationReport:
         report = VerificationReport(
             deal_id=deal_id,
+            milestone_id=milestone_id,
             deliverable_id=deliverable_id,
             verdict=verdict,
             confidence=confidence,
@@ -42,6 +44,17 @@ class VerificationRepository:
         )
         self._session.add(report)
         return report
+
+    async def get_latest_for_milestone(
+        self, milestone_id: uuid.UUID
+    ) -> VerificationReport | None:
+        result = await self._session.execute(
+            select(VerificationReport)
+            .where(VerificationReport.milestone_id == milestone_id)
+            .order_by(VerificationReport.decided_at.desc())
+            .limit(1)
+        )
+        return result.scalars().first()
 
     async def get_latest(self, deal_id: uuid.UUID) -> VerificationReport | None:
         result = await self._session.execute(

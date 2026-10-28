@@ -36,6 +36,13 @@ class SpendMandate:
     """Authority to move exactly this deal's money, to exactly these parties.
 
     Frozen on purpose: once minted, nothing can widen it.
+
+    `already_disbursed` is the total already paid out and refunded for this
+    deal — zero for a one-shot settlement, and the sum of previously settled
+    milestones for a milestone deal. It is what stops a sequence of milestone
+    releases from ever paying out more than was captured: each milestone
+    release is checked against the *remaining* balance, not the full capture.
+    It is minted from persisted deal state like everything else here.
     """
 
     deal_id: uuid.UUID
@@ -43,6 +50,7 @@ class SpendMandate:
     currency: str
     seller_recipient: str
     buyer_refund_capture_id: str
+    already_disbursed: Decimal = Decimal("0")
 
     def authorize_payout(
         self, *, recipient: str, amount: Decimal, currency: str, action: SettlementAction
@@ -50,7 +58,8 @@ class SpendMandate:
         """Check a payout to the seller. Raises SpendMandateViolation.
 
         A payout is only ever to the designated seller, never more than the
-        captured amount, and only for an action that pays the seller at all.
+        captured amount still unspent, and only for an action that pays the
+        seller at all.
         """
         if action not in {SettlementAction.RELEASE, SettlementAction.SPLIT}:
             raise SpendMandateViolation(
@@ -85,7 +94,11 @@ class SpendMandate:
             )
         if amount <= 0:
             raise SpendMandateViolation(f"the {what} amount must be positive")
-        if amount > self.captured_amount:
+        # The cap is the *remaining* balance: a milestone release cannot push
+        # the running total of everything disbursed past what was captured.
+        remaining = self.captured_amount - self.already_disbursed
+        if amount > remaining:
             raise SpendMandateViolation(
-                f"the {what} of {amount} exceeds the {self.captured_amount} captured for this deal"
+                f"the {what} of {amount} exceeds the {remaining} still held for this deal "
+                f"({self.already_disbursed} of {self.captured_amount} already disbursed)"
             )

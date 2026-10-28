@@ -144,7 +144,9 @@ class TestScope:
         nothing else — no PayPal gateway and no settlement service is in
         reach, so no agent path can lead to a payment."""
         parameters = set(inspect.signature(AgentToolbox.__init__).parameters) - {"self"}
-        assert parameters == {"deal_id", "deal_repo", "deliverable_repo", "fetcher"}
+        # milestone_id only narrows what the agent may read (one milestone's
+        # checklist and deliverable); it adds no gateway and no settlement.
+        assert parameters == {"deal_id", "deal_repo", "deliverable_repo", "fetcher", "milestone_id"}
 
     def test_the_content_fetcher_is_itself_read_only(self):
         """The fetcher retrieves what the seller already published. Its whole

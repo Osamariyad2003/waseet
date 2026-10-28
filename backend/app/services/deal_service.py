@@ -42,6 +42,16 @@ SUPPORTED_CURRENCIES = frozenset({"USD", "EUR", "GBP"})
 
 
 @dataclass(frozen=True, slots=True)
+class MilestoneSpec:
+    """One milestone the buyer asks for: a slice of the deal with its own
+    deliverable and its own acceptance checklist drafted by the AI."""
+
+    title: str
+    description: str
+    amount: Decimal
+
+
+@dataclass(frozen=True, slots=True)
 class CreateDealCommand:
     buyer_id: uuid.UUID
     seller_id: uuid.UUID
@@ -49,12 +59,41 @@ class CreateDealCommand:
     description: str
     amount: Decimal
     currency: str
+    # Empty for a simple deal; two or more for a milestone deal, in which
+    # case `amount` is the sum of the milestone amounts.
+    milestones: tuple[MilestoneSpec, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
 class OrderCreated:
     order_id: str
     approve_url: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class PayoutView:
+    """One payout batch tied to a deal, with its live PayPal status (or the
+    reason it could not be read)."""
+
+    source: str
+    milestone_id: uuid.UUID | None
+    status: object | None  # PayPalGateway.PayoutStatus
+    error: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class ActivityEntry:
+    """One step of a deal's PayPal money trail, with its live status — the
+    order, the capture held in escrow, each release payout, and any refund."""
+
+    kind: str  # order | capture | payout | refund
+    label: str
+    reference_id: str
+    status: str
+    amount: Decimal | None
+    currency: str | None
+    receiver: str | None
+    error: str | None
 
 
 class DealService:
@@ -83,10 +122,13 @@ class DealService:
         The deal and its criteria commit together: a deal must never exist
         without the checklist both parties are about to confirm.
         """
-        self._validate_money(command.amount, command.currency)
         if command.buyer_id == command.seller_id:
             raise ValidationError("the buyer and the seller must be different users")
 
+        if command.milestones:
+            return await self._create_milestone_deal(command)
+
+        self._validate_money(command.amount, command.currency)
         deal = Deal(
             buyer_id=command.buyer_id,
             seller_id=command.seller_id,
@@ -127,6 +169,96 @@ class DealService:
         )
         refreshed = await self._deals.get(deal.id)
         if refreshed is None:  # pragma: no cover — it was just committed
+            raise DealNotFound("the deal could not be read back after creation")
+        return refreshed
+
+    async def _create_milestone_deal(self, command: CreateDealCommand) -> Deal:
+        """A deal split into milestones: fund the whole once, release each
+        milestone on its own. The AI drafts a separate checklist per milestone.
+
+        The deal amount is the sum of the milestone amounts — the client's own
+        total is ignored so the two can never disagree. Each milestone's
+        checklist and the deal commit together, as with a simple deal.
+        """
+        if len(command.milestones) < 2:
+            raise ValidationError("a milestone deal needs at least two milestones")
+
+        currency = command.currency.upper()
+        total = Decimal("0.00")
+        for spec in command.milestones:
+            if not spec.title.strip():
+                raise ValidationError("every milestone needs a title")
+            if spec.amount != spec.amount.quantize(Decimal("0.01")):
+                raise ValidationError("a milestone amount cannot have more than two decimals")
+            if spec.amount < MIN_AMOUNT:
+                raise ValidationError(
+                    f"each milestone must be at least {MIN_AMOUNT} {currency}"
+                )
+            total += spec.amount
+        # The summed total is the deal amount, and it must clear the same
+        # bounds a simple deal does.
+        self._validate_money(total, currency)
+
+        deal = Deal(
+            buyer_id=command.buyer_id,
+            seller_id=command.seller_id,
+            title=command.title.strip(),
+            description=command.description.strip(),
+            amount=total,
+            currency=currency,
+            state=DealState.DRAFT,
+        )
+        self._deals.add(deal)
+        await self._session.flush()
+
+        total_criteria = 0
+        for position, spec in enumerate(command.milestones):
+            milestone = self._deals.add_milestone(
+                deal_id=deal.id,
+                position=position,
+                title=spec.title.strip(),
+                description=spec.description.strip(),
+                amount=spec.amount,
+            )
+            await self._session.flush()
+            drafted = await self._ai.draft_criteria(
+                deal=DealContext(
+                    description=(
+                        f"Milestone '{spec.title.strip()}' of a larger deal "
+                        f"({deal.description}): {spec.description.strip()}"
+                    ),
+                    amount=spec.amount,
+                    currency=currency,
+                )
+            )
+            self._deals.add_milestone_criteria(
+                deal.id, milestone.id, [criterion.text for criterion in drafted]
+            )
+            total_criteria += len(drafted)
+
+        self._audit.append(
+            deal_id=deal.id,
+            from_state=None,
+            to_state=DealState.DRAFT,
+            actor=Actor.AI,
+            event=TransitionEvent.DEAL_CREATED.value,
+            reason=(
+                f"milestone deal created with {len(command.milestones)} milestones; the "
+                f"criteria agent drafted {total_criteria} acceptance criteria across them "
+                "for both parties to confirm"
+            ),
+        )
+        await self._session.commit()
+
+        logger.info(
+            "deal.created",
+            deal_id=str(deal.id),
+            deal_state=deal.state.value,
+            milestones=len(command.milestones),
+            criteria=total_criteria,
+        )
+        refreshed = await self._deals.get(deal.id)
+        if refreshed is None:  # pragma: no cover
             raise DealNotFound("the deal could not be read back after creation")
         return refreshed
 
@@ -274,6 +406,22 @@ class DealService:
         deal.paypal_capture_id = capture.capture_id
         deal.state = target
 
+        # A milestone deal is funded once, for the whole amount; each
+        # milestone's own slice becomes FUNDED and can then be delivered and
+        # released independently.
+        for milestone in deal.milestones:
+            if milestone.state is DealState.DRAFT:
+                milestone.state = next_state(
+                    milestone.state,
+                    TransitionEvent.PAYMENT_CAPTURED,
+                    replace(
+                        deal_transition_context(deal),
+                        criteria_count=1,
+                        all_criteria_confirmed=True,
+                        has_capture=True,
+                    ),
+                )
+
         self._audit.append(
             deal_id=deal.id,
             from_state=from_state,
@@ -406,6 +554,122 @@ class DealService:
         if deal is None:
             raise DealNotFound("no such deal")
         return deal
+
+    async def get_payouts(
+        self, *, deal_id: uuid.UUID, user_id: uuid.UUID, is_reviewer: bool = False
+    ) -> list[PayoutView]:
+        """Live PayPal status for every payout this deal has made — the whole
+        deal's release, or each released milestone's slice.
+
+        Each batch is read from PayPal independently; one that cannot be read
+        is reported as an error on its own row rather than failing the lot.
+        """
+        deal = (
+            await self.get_deal_for_reviewer(deal_id)
+            if is_reviewer
+            else await self.get_deal_for_party(deal_id=deal_id, user_id=user_id)
+        )
+        return await self._payout_views(deal)
+
+    async def get_paypal_activity(
+        self, *, deal_id: uuid.UUID, user_id: uuid.UUID, is_reviewer: bool = False
+    ) -> list[ActivityEntry]:
+        """The deal's full PayPal money trail, each step read live: the order,
+        the capture held in escrow, every release payout, and any refund.
+
+        Each reference is read independently; one that cannot be read becomes
+        an error on its own row rather than failing the whole trail.
+        """
+        deal = (
+            await self.get_deal_for_reviewer(deal_id)
+            if is_reviewer
+            else await self.get_deal_for_party(deal_id=deal_id, user_id=user_id)
+        )
+
+        entries: list[ActivityEntry] = []
+
+        async def add_reference(kind: str, label: str, ref: str | None, reader) -> None:
+            if not ref:
+                return
+            try:
+                status = await reader(ref)
+                entries.append(
+                    ActivityEntry(
+                        kind=kind,
+                        label=label,
+                        reference_id=status.reference_id,
+                        status=status.status,
+                        amount=status.amount,
+                        currency=status.currency,
+                        receiver=None,
+                        error=None,
+                    )
+                )
+            except PayPalError as exc:
+                entries.append(
+                    ActivityEntry(kind, label, ref, "", None, None, None, exc.message)
+                )
+
+        await add_reference(
+            "order", "order", deal.paypal_order_id, lambda r: self._paypal.get_order_status(order_id=r)
+        )
+        await add_reference(
+            "capture",
+            "capture",
+            deal.paypal_capture_id,
+            lambda r: self._paypal.get_capture_status(capture_id=r),
+        )
+
+        # Payouts carry a receiver, so they are mapped from the richer view.
+        for view in await self._payout_views(deal):
+            if view.status is not None:
+                receiver = view.status.items[0].receiver if view.status.items else None
+                entries.append(
+                    ActivityEntry(
+                        kind="payout",
+                        label=view.source,
+                        reference_id=view.status.payout_batch_id,
+                        status=view.status.batch_status,
+                        amount=view.status.amount,
+                        currency=view.status.currency,
+                        receiver=receiver,
+                        error=None,
+                    )
+                )
+            else:
+                entries.append(
+                    ActivityEntry("payout", view.source, "", "", None, None, None, view.error)
+                )
+
+        await add_reference(
+            "refund",
+            "refund",
+            deal.refund_id,
+            lambda r: self._paypal.get_refund_status(refund_id=r),
+        )
+        return entries
+
+    async def _payout_views(self, deal: Deal) -> list[PayoutView]:
+        """The payout batches on a deal, with live status — shared by the
+        payouts endpoint and the fuller activity trail."""
+        targets: list[tuple[str, uuid.UUID | None, str]] = []
+        # On a milestone deal the milestones own the payouts; the deal-level
+        # payout_batch_id is only a side effect of the last release, so it is
+        # not listed again here.
+        if deal.payout_batch_id and not deal.milestones:
+            targets.append(("deal", None, deal.payout_batch_id))
+        for milestone in deal.milestones:
+            if milestone.payout_batch_id:
+                targets.append((milestone.title, milestone.id, milestone.payout_batch_id))
+
+        views: list[PayoutView] = []
+        for source, milestone_id, batch_id in targets:
+            try:
+                status = await self._paypal.get_payout_status(payout_batch_id=batch_id)
+                views.append(PayoutView(source, milestone_id, status, None))
+            except PayPalError as exc:
+                views.append(PayoutView(source, milestone_id, None, exc.message))
+        return views
 
     async def list_deals(
         self, *, user_id: uuid.UUID, role: Role, state: DealState | None = None

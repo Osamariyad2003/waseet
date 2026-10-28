@@ -72,6 +72,39 @@ class TestAuthorizedPayments:
         )
 
 
+class TestCumulativeCap:
+    """A milestone deal releases its slices one at a time against a single
+    capture. `already_disbursed` is what stops the sequence over-paying."""
+
+    def test_a_milestone_release_within_the_remaining_balance_is_authorized(self):
+        # 150 already released on a 250 capture; a 100 release fits exactly.
+        mandate(already_disbursed=Decimal("150.00")).authorize_payout(
+            recipient=SELLER,
+            amount=Decimal("100.00"),
+            currency="USD",
+            action=SettlementAction.RELEASE,
+        )
+
+    def test_a_release_past_the_remaining_balance_is_refused(self):
+        # 150 already released; a second 150 would total 300 > 250 captured.
+        with pytest.raises(SpendMandateViolation, match="still held"):
+            mandate(already_disbursed=Decimal("150.00")).authorize_payout(
+                recipient=SELLER,
+                amount=Decimal("150.00"),
+                currency="USD",
+                action=SettlementAction.RELEASE,
+            )
+
+    def test_a_release_once_everything_is_disbursed_is_refused(self):
+        with pytest.raises(SpendMandateViolation, match="still held"):
+            mandate(already_disbursed=Decimal("250.00")).authorize_payout(
+                recipient=SELLER,
+                amount=Decimal("0.01"),
+                currency="USD",
+                action=SettlementAction.RELEASE,
+            )
+
+
 class TestRecipientIsPinned:
     @pytest.mark.parametrize(
         "recipient",

@@ -44,6 +44,10 @@ from app.repositories.audit_repo import AuditRepository
 
 logger = structlog.get_logger(__name__)
 
+# Milestone states whose slice has already left (or been earmarked out of)
+# escrow — used to compute how much of the capture remains.
+_SETTLED_STATES = frozenset({DealState.RELEASED, DealState.REFUNDED, DealState.SPLIT})
+
 
 @dataclass(frozen=True, slots=True)
 class SettlementOutcome:
@@ -135,9 +139,174 @@ class SettlementService:
         )
         return SettlementOutcome(state=target, breakdown=breakdown, paypal_reference=reference)
 
+    async def settle_milestone(
+        self,
+        *,
+        deal: Deal,
+        milestone,
+        event: TransitionEvent,
+        actor: Actor,
+        reason: str,
+        context: TransitionContext | None = None,
+    ) -> SettlementOutcome:
+        """Release one milestone's slice of the single capture.
+
+        Same guarantees as `settle`, scoped to a milestone: the state machine
+        gates the milestone's own transition, and the spend mandate is minted
+        with `already_disbursed` set to the milestones already settled, so a
+        sequence of releases can never pay out more than was captured. Does
+        not commit — the caller owns the transaction.
+        """
+        if is_already_applied(milestone.state, event):
+            logger.info(
+                "settlement.milestone_already_applied",
+                deal_id=str(deal.id),
+                milestone_id=str(milestone.id),
+                transition=event.value,
+            )
+            return SettlementOutcome(
+                state=milestone.state,
+                breakdown=None,
+                paypal_reference=milestone.payout_batch_id,
+                already_settled=True,
+            )
+
+        target = next_state(milestone.state, event, context or self._context_for(deal))
+        breakdown = compute_release(
+            milestone.amount, deal.currency, self._settings.platform_fee_percent
+        )
+
+        # What has already left escrow for this deal, so the mandate caps this
+        # release against the remaining balance, not the full capture.
+        already = sum(
+            (
+                other.amount
+                for other in deal.milestones
+                if other.id != milestone.id and other.state in _SETTLED_STATES
+            ),
+            Decimal("0"),
+        )
+        mandate = self._mint_mandate(deal, already_disbursed=already)
+
+        reference = await self._payout(
+            deal,
+            mandate,
+            amount=breakdown.to_seller,
+            currency=breakdown.currency,
+            action=SettlementAction.RELEASE,
+            batch_id=idempotency.milestone_release_batch_id(milestone.id),
+            note=f"Waseet milestone release for {milestone.id}",
+        )
+
+        milestone.payout_batch_id = reference
+        milestone.platform_fee = breakdown.platform_fee
+        milestone.state = target
+
+        self._audit.append(
+            deal_id=deal.id,
+            from_state=deal.state,
+            to_state=deal.state,
+            actor=actor,
+            event=event.value,
+            reason=reason,
+            paypal_reference=reference,
+        )
+        logger.info(
+            "settlement.milestone_executed",
+            deal_id=str(deal.id),
+            milestone_id=str(milestone.id),
+            to_seller=str(breakdown.to_seller),
+            paypal_reference=reference,
+        )
+        return SettlementOutcome(state=target, breakdown=breakdown, paypal_reference=reference)
+
+    async def settle_milestone_dispute(
+        self,
+        *,
+        deal: Deal,
+        milestone,
+        action: SettlementAction,
+        event: TransitionEvent,
+        actor: Actor,
+        reason: str,
+        seller_amount: Decimal | None = None,
+        context: TransitionContext | None = None,
+    ) -> SettlementOutcome:
+        """A reviewer's decision on a disputed milestone: release, refund or
+        split that milestone's slice. Same guarantees as `settle`, scoped to
+        the milestone, capped against the deal's remaining balance."""
+        if is_already_applied(milestone.state, event):
+            return SettlementOutcome(
+                state=milestone.state,
+                breakdown=None,
+                paypal_reference=milestone.payout_batch_id or milestone.refund_id,
+                already_settled=True,
+            )
+
+        target = next_state(milestone.state, event, context or self._context_for(deal))
+        breakdown = self._breakdown_for_amount(
+            milestone.amount, deal.currency, action, seller_amount
+        )
+
+        already = sum(
+            (
+                other.amount
+                for other in deal.milestones
+                if other.id != milestone.id and other.state in _SETTLED_STATES
+            ),
+            Decimal("0"),
+        )
+        mandate = self._mint_mandate(deal, already_disbursed=already)
+
+        reference: str | None = None
+        if breakdown.to_seller > 0:
+            reference = await self._payout(
+                deal,
+                mandate,
+                amount=breakdown.to_seller,
+                currency=breakdown.currency,
+                action=action,
+                batch_id=idempotency.milestone_release_batch_id(milestone.id),
+                note=f"Waseet milestone settlement for {milestone.id}",
+            )
+            milestone.payout_batch_id = reference
+        if breakdown.to_buyer > 0:
+            refund_ref = await self._refund(
+                deal,
+                mandate,
+                amount=breakdown.to_buyer,
+                currency=breakdown.currency,
+                action=action,
+                request_id=idempotency.milestone_refund_request_id(milestone.id),
+                note="Waseet milestone refund",
+            )
+            milestone.refund_id = refund_ref
+            reference = reference or refund_ref
+
+        milestone.platform_fee = breakdown.platform_fee
+        milestone.state = target
+
+        self._audit.append(
+            deal_id=deal.id,
+            from_state=deal.state,
+            to_state=deal.state,
+            actor=actor,
+            event=event.value,
+            reason=reason,
+            paypal_reference=reference,
+        )
+        logger.info(
+            "settlement.milestone_dispute_resolved",
+            deal_id=str(deal.id),
+            milestone_id=str(milestone.id),
+            action=action.value,
+            milestone_state=target.value,
+        )
+        return SettlementOutcome(state=target, breakdown=breakdown, paypal_reference=reference)
+
     # --- money movement ---------------------------------------------------
 
-    def _mint_mandate(self, deal: Deal) -> SpendMandate:
+    def _mint_mandate(self, deal: Deal, already_disbursed: Decimal = Decimal("0")) -> SpendMandate:
         """Mint the authority for this settlement from the deal aggregate.
 
         Everything in it comes from persisted deal state: the captured
@@ -153,6 +322,7 @@ class SettlementService:
             currency=deal.currency,
             seller_recipient=self._receiver_email(deal),
             buyer_refund_capture_id=deal.paypal_capture_id,
+            already_disbursed=already_disbursed,
         )
 
     async def _move_money(self, deal: Deal, breakdown: SettlementBreakdown) -> str | None:
@@ -295,15 +465,24 @@ class SettlementService:
     def _breakdown_for(
         self, deal: Deal, action: SettlementAction, seller_amount: Decimal | None
     ) -> SettlementBreakdown:
+        return self._breakdown_for_amount(deal.amount, deal.currency, action, seller_amount)
+
+    def _breakdown_for_amount(
+        self,
+        amount: Decimal,
+        currency: str,
+        action: SettlementAction,
+        seller_amount: Decimal | None,
+    ) -> SettlementBreakdown:
         fee = self._settings.platform_fee_percent
         try:
             if action is SettlementAction.RELEASE:
-                return compute_release(deal.amount, deal.currency, fee)
+                return compute_release(amount, currency, fee)
             if action is SettlementAction.REFUND:
-                return compute_refund(deal.amount, deal.currency)
+                return compute_refund(amount, currency)
             if seller_amount is None:
                 raise SettlementError("a split requires the amount to pay the seller")
-            return compute_split(deal.amount, deal.currency, seller_amount, fee)
+            return compute_split(amount, currency, seller_amount, fee)
         except ValueError as exc:
             # The arithmetic refused: an out-of-range split, or a breakdown
             # that would not balance.

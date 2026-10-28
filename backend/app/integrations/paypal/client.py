@@ -24,7 +24,10 @@ from app.integrations.paypal.interface import (
     AccessToken,
     CaptureResult,
     OrderResult,
+    PayoutItemStatus,
     PayoutResult,
+    PayoutStatus,
+    ReferenceStatus,
     RefundResult,
     WebhookHeaders,
 )
@@ -33,6 +36,9 @@ logger = structlog.get_logger(__name__)
 
 # Refresh a little early so a token never expires mid-request.
 TOKEN_EXPIRY_SAFETY_MARGIN_SECONDS = 60
+# A supplied token carries no expiry, so assume a conservative life (PayPal
+# sandbox tokens last ~9h). A 401 falls back to a freshly minted token anyway.
+SUPPLIED_TOKEN_ASSUMED_TTL_SECONDS = 8 * 3600
 
 
 class PayPalClient:
@@ -47,6 +53,10 @@ class PayPalClient:
             timeout=httpx.Timeout(settings.paypal_timeout_seconds),
         )
         self._token: AccessToken | None = None
+        self._token_source: str | None = None
+        # Set once a supplied token is rejected (401), so we stop reaching for
+        # it and mint our own from here on.
+        self._supplied_token_rejected = False
 
     async def aclose(self) -> None:
         if self._owns_client:
@@ -54,14 +64,31 @@ class PayPalClient:
 
     # --- auth -------------------------------------------------------------
 
-    async def get_access_token(self) -> AccessToken:
-        if self._token and self._token.expires_at_epoch > time.time():
+    async def get_access_token(self, *, force_refresh: bool = False) -> AccessToken:
+        if force_refresh and self._token_source == "supplied":
+            # The token handed to us (PAYPAL_SANDBOX_ACCESS_TOKEN) was
+            # rejected. Drop it for good and fall through to a minted one.
+            self._supplied_token_rejected = True
+            self._token = None
+
+        if not force_refresh and self._token and self._token.expires_at_epoch > time.time():
+            return self._token
+
+        supplied = self._settings.paypal_sandbox_access_token.get_secret_value()
+        if supplied and not self._supplied_token_rejected:
+            self._token = AccessToken(
+                token=supplied,
+                expires_at_epoch=time.time() + SUPPLIED_TOKEN_ASSUMED_TTL_SECONDS,
+                scope="(supplied)",
+            )
+            self._token_source = "supplied"
+            logger.info("paypal.token_supplied")
             return self._token
 
         if not self._settings.paypal_configured:
             raise PayPalError(
                 "PayPal credentials are not configured; set PAYPAL_CLIENT_ID and "
-                "PAYPAL_CLIENT_SECRET in the environment"
+                "PAYPAL_CLIENT_SECRET (or PAYPAL_SANDBOX_ACCESS_TOKEN) in the environment"
             )
 
         try:
@@ -92,6 +119,7 @@ class PayPalClient:
             expires_at_epoch=time.time() + max(expires_in - TOKEN_EXPIRY_SAFETY_MARGIN_SECONDS, 0),
             scope=payload.get("scope", ""),
         )
+        self._token_source = "oauth"
         logger.info("paypal.token_acquired", expires_in=int(expires_in))
         return self._token
 
@@ -313,6 +341,83 @@ class PayPalClient:
             currency=refunded.get("currency_code", currency),
         )
 
+    async def get_payout_status(self, *, payout_batch_id: str) -> PayoutStatus:
+        payload = await self._request(
+            "GET",
+            f"/v1/payments/payouts/{payout_batch_id}",
+            what="read the payout status",
+        )
+        header = payload.get("batch_header") or {}
+        amount_obj = header.get("amount") or {}
+        amount = amount_obj.get("value")
+        items: list[PayoutItemStatus] = []
+        for raw in payload.get("items") or []:
+            detail = raw.get("payout_item") or {}
+            item_amount = detail.get("amount") or {}
+            items.append(
+                PayoutItemStatus(
+                    transaction_id=raw.get("transaction_id"),
+                    transaction_status=str(raw.get("transaction_status", "")),
+                    amount=Decimal(str(item_amount.get("value", "0") or "0")),
+                    currency=str(item_amount.get("currency", "") or ""),
+                    receiver=str(detail.get("receiver", "") or ""),
+                )
+            )
+        logger.info(
+            "paypal.payout_status_read",
+            payout_batch_id=payout_batch_id,
+            batch_status=header.get("batch_status"),
+        )
+        return PayoutStatus(
+            payout_batch_id=header.get("payout_batch_id", payout_batch_id),
+            batch_status=str(header.get("batch_status", "")),
+            amount=Decimal(str(amount)) if amount is not None else None,
+            currency=amount_obj.get("currency"),
+            time_created=header.get("time_created"),
+            items=tuple(items),
+        )
+
+    async def get_order_status(self, *, order_id: str) -> ReferenceStatus:
+        payload = await self._request(
+            "GET", f"/v2/checkout/orders/{order_id}", what="read the order status"
+        )
+        amount = None
+        currency = None
+        units = payload.get("purchase_units") or []
+        if units:
+            money = units[0].get("amount") or {}
+            amount = money.get("value")
+            currency = money.get("currency_code")
+        return ReferenceStatus(
+            reference_id=payload.get("id", order_id),
+            status=str(payload.get("status", "")),
+            amount=Decimal(str(amount)) if amount is not None else None,
+            currency=currency,
+        )
+
+    async def get_capture_status(self, *, capture_id: str) -> ReferenceStatus:
+        payload = await self._request(
+            "GET", f"/v2/payments/captures/{capture_id}", what="read the capture status"
+        )
+        return self._reference_from_amount(payload, capture_id)
+
+    async def get_refund_status(self, *, refund_id: str) -> ReferenceStatus:
+        payload = await self._request(
+            "GET", f"/v2/payments/refunds/{refund_id}", what="read the refund status"
+        )
+        return self._reference_from_amount(payload, refund_id)
+
+    @staticmethod
+    def _reference_from_amount(payload: dict[str, Any], fallback_id: str) -> ReferenceStatus:
+        money = payload.get("amount") or {}
+        amount = money.get("value")
+        return ReferenceStatus(
+            reference_id=payload.get("id", fallback_id),
+            status=str(payload.get("status", "")),
+            amount=Decimal(str(amount)) if amount is not None else None,
+            currency=money.get("currency_code"),
+        )
+
     # --- webhooks ---------------------------------------------------------
 
     async def verify_webhook(
@@ -359,16 +464,18 @@ class PayPalClient:
         method: str,
         path: str,
         *,
-        json: dict[str, Any],
+        json: dict[str, Any] | None = None,
         what: str,
         request_id: str | None = None,
+        _retried: bool = False,
     ) -> dict[str, Any]:
-        token = await self.get_access_token()
+        token = await self.get_access_token(force_refresh=_retried)
         request_headers = {
             "Authorization": f"Bearer {token.token}",
-            "Content-Type": "application/json",
             "Accept": "application/json",
         }
+        if json is not None:
+            request_headers["Content-Type"] = "application/json"
         if request_id:
             request_headers["PayPal-Request-Id"] = request_id
 
@@ -376,6 +483,14 @@ class PayPalClient:
             response = await self._http.request(method, path, json=json, headers=request_headers)
         except httpx.HTTPError as exc:
             raise PayPalError(f"could not reach PayPal to {what}: {exc!s}") from exc
+
+        # An expired or rejected token (most likely a supplied one that lapsed)
+        # is retried once with a freshly minted token before giving up.
+        if response.status_code == httpx.codes.UNAUTHORIZED and not _retried:
+            logger.info("paypal.token_rejected_retrying", what=what)
+            return await self._request(
+                method, path, json=json, what=what, request_id=request_id, _retried=True
+            )
 
         if response.status_code >= httpx.codes.BAD_REQUEST:
             raise PayPalError(self._describe_failure(what, response))

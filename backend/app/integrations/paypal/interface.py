@@ -55,6 +55,40 @@ class PayoutResult:
 
 
 @dataclass(frozen=True, slots=True)
+class ReferenceStatus:
+    """The live state of a single PayPal object (order, capture or refund),
+    read back by id for the activity view."""
+
+    reference_id: str
+    status: str
+    amount: Decimal | None = None
+    currency: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PayoutItemStatus:
+    """One recipient line inside a payout batch."""
+
+    transaction_id: str | None
+    transaction_status: str
+    amount: Decimal
+    currency: str
+    receiver: str
+
+
+@dataclass(frozen=True, slots=True)
+class PayoutStatus:
+    """The live state of a payout batch, read back from PayPal after release."""
+
+    payout_batch_id: str
+    batch_status: str
+    amount: Decimal | None
+    currency: str | None
+    time_created: str | None
+    items: tuple[PayoutItemStatus, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class RefundResult:
     """A refund of a capture, returning funds to the buyer."""
 
@@ -177,6 +211,22 @@ class PayPalGateway(Protocol):
         note: str,
     ) -> RefundResult:
         """Return captured funds to the buyer, in full or in part."""
+        ...
+
+    async def get_payout_status(self, *, payout_batch_id: str) -> PayoutStatus:
+        """Read a payout batch back from PayPal, for live release tracking."""
+        ...
+
+    async def get_order_status(self, *, order_id: str) -> ReferenceStatus:
+        """Read an order's live status (CREATED / APPROVED / COMPLETED)."""
+        ...
+
+    async def get_capture_status(self, *, capture_id: str) -> ReferenceStatus:
+        """Read a capture's live status — the money held in escrow."""
+        ...
+
+    async def get_refund_status(self, *, refund_id: str) -> ReferenceStatus:
+        """Read a refund's live status, for refunded or split deals."""
         ...
 
     async def verify_webhook(

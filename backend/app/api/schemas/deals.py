@@ -9,7 +9,15 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    computed_field,
+    field_validator,
+    model_validator,
+)
 
 from app.domain.enums import (
     Actor,
@@ -92,6 +100,19 @@ class VerificationReportResponse(ORMModel):
     recommendation: str | None
     decided_at: datetime
 
+    # Itemized audit view, derived from per_criterion so there is a single
+    # source of truth. The conditions the verifier found met vs. the ones it
+    # found unmet or missing — a clearer audit artifact than the raw list.
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def verified_criteria(self) -> list[str]:
+        return [str(c.get("text", "")) for c in self.per_criterion if c.get("pass")]
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def unmet_or_missing_criteria(self) -> list[str]:
+        return [str(c.get("text", "")) for c in self.per_criterion if not c.get("pass")]
+
 
 class VerificationResultResponse(BaseModel):
     """The verification plus what the policy did with it — so the UI can show
@@ -109,13 +130,60 @@ class VerificationResultResponse(BaseModel):
     )
 
 
-# --- deals -----------------------------------------------------------------
+# --- proof-of-escrow certificate -------------------------------------------
 
 
-class CreateDealRequest(BaseModel):
-    seller_email: EmailStr
+class CertificateResponse(BaseModel):
+    """A public, shareable proof that a deal was settled, and how.
+
+    Deliberately minimal and privacy-safe: no emails, no PayPal ids, no
+    descriptions — only the title, the amount, the final outcome and the AI
+    verifier's audit summary. Anyone with the link can check a deal's seal
+    without signing in, the way a certificate is meant to be verifiable.
+    """
+
+    deal_id: uuid.UUID
+    seal: str
+    title: str
+    amount: Decimal
+    currency: str
+    outcome: str  # released | refunded | split
+    state: DealState
+    created_at: datetime
+    # The verification block is present when the deal was AI-verified; a deal
+    # settled purely by a reviewer may have no report.
+    verdict: Verdict | None = None
+    confidence: Decimal | None = None
+    reasoning: str | None = None
+    verified_criteria: list[str] = Field(default_factory=list)
+    unmet_or_missing_criteria: list[str] = Field(default_factory=list)
+    decided_by: DecidedBy | None = None
+    decided_at: datetime | None = None
+    advisory_notice: str = (
+        "This certificate records an AI-verified escrow outcome on the PayPal "
+        "sandbox. The verdict is advisory; a human reviewer resolves any dispute."
+    )
+
+
+# --- marketplace offers ----------------------------------------------------
+
+
+class OfferResponse(ORMModel):
+    id: uuid.UUID
+    title: str
+    description: str
+    category: str
+    amount: Decimal
+    currency: str
+    active: bool
+    created_at: datetime
+    seller: UserResponse
+
+
+class CreateOfferRequest(BaseModel):
     title: str = Field(min_length=1, max_length=200)
-    description: str = Field(min_length=20, max_length=5_000)
+    description: str = Field(default="", max_length=5_000)
+    category: str = Field(default="other", max_length=40)
     amount: Money
     currency: str = Field(min_length=3, max_length=3)
 
@@ -123,6 +191,149 @@ class CreateDealRequest(BaseModel):
     @classmethod
     def _upper(cls, value: str) -> str:
         return value.upper()
+
+
+# --- product catalog (Shop & Escrow) ---------------------------------------
+
+
+class CatalogProductResponse(BaseModel):
+    """A product from the catalog, flattened for the Shop grid and for
+    pre-filling a new deal. Reference data only — no money moves here."""
+
+    id: str
+    title: str
+    brand: str | None = None
+    description: str | None = None
+    image_url: str | None = None
+    price: Decimal | None = None
+    currency: str
+    available: bool
+    buy_url: str | None = None
+
+
+# --- milestones ------------------------------------------------------------
+
+
+class MilestoneSpecRequest(BaseModel):
+    """One milestone the buyer asks for when creating a milestone deal."""
+
+    title: str = Field(min_length=1, max_length=200)
+    description: str = Field(default="", max_length=5_000)
+    amount: Money
+
+
+class MilestoneResponse(ORMModel):
+    id: uuid.UUID
+    position: int
+    title: str
+    description: str
+    amount: Decimal
+    state: DealState
+    payout_batch_id: str | None
+    platform_fee: Decimal | None
+    criteria: list[CriterionResponse] = Field(default_factory=list)
+    deliverables: list[DeliverableResponse] = Field(default_factory=list)
+    verification_reports: list[VerificationReportResponse] = Field(default_factory=list)
+
+
+class MilestoneVerificationResultResponse(BaseModel):
+    milestone: MilestoneResponse
+    released: bool
+    policy_outcome: str
+    policy_reason: str
+    advisory_notice: str = (
+        "This verdict is produced by an AI verifier and is advisory. Either party "
+        "can contest it, and a human reviewer resolves any dispute."
+    )
+
+
+class MilestoneDisputeResultResponse(BaseModel):
+    """What the reviewer's decision on a milestone did."""
+
+    milestone: MilestoneResponse
+    action: SettlementAction
+    to_seller: Decimal
+    to_buyer: Decimal
+    platform_fee: Decimal
+    paypal_reference: str | None
+    already_settled: bool
+
+
+# --- payout tracking (PayPal Payouts API) ----------------------------------
+
+
+class PayoutItemStatusResponse(ORMModel):
+    transaction_id: str | None
+    transaction_status: str
+    amount: Decimal
+    currency: str
+    receiver: str
+
+
+class PayoutStatusResponse(ORMModel):
+    payout_batch_id: str
+    batch_status: str
+    amount: Decimal | None
+    currency: str | None
+    time_created: str | None
+    items: list[PayoutItemStatusResponse] = Field(default_factory=list)
+
+
+class PayoutViewResponse(BaseModel):
+    """One payout batch for a deal, with its live PayPal status (or why it
+    could not be read)."""
+
+    source: str
+    milestone_id: uuid.UUID | None = None
+    status: PayoutStatusResponse | None = None
+    error: str | None = None
+
+
+class ActivityEntryResponse(ORMModel):
+    """One step of a deal's PayPal money trail with its live status."""
+
+    kind: str
+    label: str
+    reference_id: str
+    status: str
+    amount: Decimal | None
+    currency: str | None
+    receiver: str | None
+    error: str | None
+
+
+# --- deals -----------------------------------------------------------------
+
+
+class CreateDealRequest(BaseModel):
+    seller_email: EmailStr
+    title: str = Field(min_length=1, max_length=200)
+    description: str = Field(min_length=20, max_length=5_000)
+    # Optional when `milestones` is given: the deal amount is then the sum of
+    # the milestone amounts, computed server-side.
+    amount: Money | None = None
+    currency: str = Field(min_length=3, max_length=3)
+    # Two or more makes this a milestone deal; omitted or empty is a simple one.
+    milestones: list[MilestoneSpecRequest] = Field(default_factory=list)
+
+    @field_validator("currency")
+    @classmethod
+    def _upper(cls, value: str) -> str:
+        return value.upper()
+
+    @field_validator("milestones")
+    @classmethod
+    def _enough_milestones(cls, value: list[MilestoneSpecRequest]) -> list[MilestoneSpecRequest]:
+        if value and len(value) < 2:
+            raise ValueError("a milestone deal needs at least two milestones")
+        return value
+
+    @model_validator(mode="after")
+    def _amount_or_milestones(self) -> CreateDealRequest:
+        # A simple deal must state its amount; a milestone deal derives it.
+        if self.amount is None and not self.milestones:
+            raise ValueError("amount is required unless milestones are provided")
+        return self
 
 
 class DealSummaryResponse(ORMModel):
@@ -173,6 +384,7 @@ class DealResponse(ORMModel):
     criteria: list[CriterionResponse] = Field(default_factory=list)
     deliverables: list[DeliverableResponse] = Field(default_factory=list)
     verification_reports: list[VerificationReportResponse] = Field(default_factory=list)
+    milestones: list[MilestoneResponse] = Field(default_factory=list)
 
 
 class DealWithTimelineResponse(DealResponse):
@@ -261,3 +473,73 @@ class ResolveDisputeResponse(BaseModel):
     platform_fee: Decimal
     paypal_reference: str | None
     already_settled: bool
+
+
+# --- wallet / explore / account / home -------------------------------------
+
+
+class WalletOverviewResponse(BaseModel):
+    """Aggregated financial overview for the user's wallet."""
+
+    held: StatTile
+    released: StatTile
+    refunded: StatTile
+    pending: StatTile
+    deals: list[DealSummaryResponse]
+
+
+class LifecycleStep(BaseModel):
+    step: int
+    key: str
+    title: str
+    description: str
+
+
+class SafetyPillar(BaseModel):
+    key: str
+    title: str
+    description: str
+
+
+class ExplorePlatformInfo(BaseModel):
+    confidence_threshold: Decimal
+    platform_fee_percent: Decimal
+    sandbox_mode: bool
+    ai_provider: str
+    supported_deliverable_types: list[DeliverableType]
+
+
+class ExploreResponse(BaseModel):
+    title: str
+    subtitle: str
+    steps: list[LifecycleStep]
+    safety_pillars: list[SafetyPillar]
+    platform_info: ExplorePlatformInfo
+    stats: dict[str, Any]
+
+
+class AccountProfileResponse(BaseModel):
+    id: uuid.UUID
+    email: str
+    full_name: str
+    role: Role
+    paypal_account_ref: str | None
+    created_at: datetime
+    total_deals: int
+    deals_as_buyer: int
+    deals_as_seller: int
+    total_transacted_volume: Decimal
+    currency: str
+
+
+class UpdateAccountProfileRequest(BaseModel):
+    full_name: str | None = Field(default=None, max_length=200)
+    paypal_account_ref: str | None = Field(default=None, max_length=320)
+
+
+class HomeSummaryResponse(BaseModel):
+    user: UserResponse
+    active_deals_count: int
+    action_required_count: int
+    recent_deals: list[DealSummaryResponse]
+

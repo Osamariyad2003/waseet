@@ -17,6 +17,7 @@ happen only behind the decision policy or a human.
 
 from __future__ import annotations
 
+import dataclasses
 import json
 from typing import Any
 
@@ -219,6 +220,21 @@ async def _apply_event(
         )
         from_state = deal.state
         deal.state = target
+        # A milestone deal is funded once; each milestone's slice becomes
+        # FUNDED too so it can be delivered and released. Mirrors the capture
+        # endpoint, for the case where PayPal confirms via webhook instead.
+        for milestone in deal.milestones:
+            if milestone.state is DealState.DRAFT:
+                milestone.state = next_state(
+                    milestone.state,
+                    TransitionEvent.PAYMENT_CAPTURED,
+                    dataclasses.replace(
+                        deal_transition_context(deal),
+                        criteria_count=1,
+                        all_criteria_confirmed=True,
+                        has_capture=True,
+                    ),
+                )
         audit_repo.append(
             deal_id=deal.id,
             from_state=from_state,
