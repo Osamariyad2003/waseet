@@ -1,0 +1,1442 @@
+{
+  "info": {
+    "name": "Waseet \u2014 AI Escrow on PayPal",
+    "_postman_id": "waseet-escrow-collection",
+    "description": "**Waseet** is an AI-mediated escrow service on PayPal.\n\nThis collection walks the full lifecycle of a deal:\n\n1. **Auth** \u2014 log in as the buyer, seller and reviewer (each captures a token).\n2. **Create** \u2014 the buyer opens a deal; the AI criteria agent drafts a checklist.\n3. **Fund** \u2014 capture the buyer's PayPal order into escrow (or simulate it in dev).\n4. **Deliver** \u2014 the seller submits the work.\n5. **Verify** \u2014 the AI verifier judges the deliverable against the checklist and, on high confidence, auto-releases the payout.\n6. **Dispute** \u2014 either party can contest; a human reviewer resolves it.\n\nAlso covered: milestone deals, the marketplace, and the dashboard reads.\n\n### Setup\nSet the `password` collection variable to your seed password (`SEED_PASSWORD`), then run the three **Login** requests first. Tokens, `dealId`, `milestoneId` and `offerId` are captured automatically.\n\n> Everything runs against the PayPal **sandbox**. No real money moves.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{buyerToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000"
+    },
+    {
+      "key": "buyerEmail",
+      "value": "buyer@waseet.example.com"
+    },
+    {
+      "key": "sellerEmail",
+      "value": "seller@waseet.example.com"
+    },
+    {
+      "key": "reviewerEmail",
+      "value": "reviewer@waseet.example.com"
+    },
+    {
+      "key": "password",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "buyerToken",
+      "value": ""
+    },
+    {
+      "key": "sellerToken",
+      "value": ""
+    },
+    {
+      "key": "reviewerToken",
+      "value": ""
+    },
+    {
+      "key": "dealId",
+      "value": ""
+    },
+    {
+      "key": "milestoneId",
+      "value": ""
+    },
+    {
+      "key": "offerId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1 \u00b7 Health & Auth",
+      "description": "Log in as each role before running the rest.",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Liveness check. The only route needing no token besides login."
+          },
+          "response": []
+        },
+        {
+          "name": "Login \u2014 Buyer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Authenticate the buyer. Captures `buyerToken`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{buyerEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d = pm.response.json();",
+                  "if (d && d.access_token) {",
+                  "  pm.collectionVariables.set('buyerToken', d.access_token);",
+                  "  pm.test('got buyerToken', () => pm.expect(d.access_token).to.be.a('string'));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login \u2014 Seller",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Authenticate the seller. Captures `sellerToken`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{sellerEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d = pm.response.json();",
+                  "if (d && d.access_token) {",
+                  "  pm.collectionVariables.set('sellerToken', d.access_token);",
+                  "  pm.test('got sellerToken', () => pm.expect(d.access_token).to.be.a('string'));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login \u2014 Reviewer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Authenticate the human reviewer. Captures `reviewerToken`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{reviewerEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d = pm.response.json();",
+                  "if (d && d.access_token) {",
+                  "  pm.collectionVariables.set('reviewerToken', d.access_token);",
+                  "  pm.test('got reviewerToken', () => pm.expect(d.access_token).to.be.a('string'));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Who am I",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Restore the session from the bearer token.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2 \u00b7 Deal lifecycle (happy path)",
+      "description": "Create \u2192 confirm \u2192 fund \u2192 deliver \u2192 verify \u2192 release.",
+      "item": [
+        {
+          "name": "Create deal (buyer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/deals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "deals"
+              ]
+            },
+            "description": "Open a deal from a plain-language brief. The AI criteria agent drafts the acceptance checklist. Captures `dealId`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"seller_email\": \"{{sellerEmail}}\",\n  \"title\": \"Welcome email copy\",\n  \"description\": \"A plain-text welcome email for a budgeting app: a subject line, a two-sentence intro, and exactly three getting-started bullets.\",\n  \"amount\": \"40.00\",\n  \"currency\": \"USD\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d = pm.response.json();",
+                  "if (d && d.id) {",
+                  "  pm.collectionVariables.set('dealId', d.id);",
+                  "  pm.test('deal created', () => pm.expect(d.state).to.eql('DRAFT'));",
+                  "}",
+                  "if (d && d.milestones && d.milestones.length) {",
+                  "  pm.collectionVariables.set('milestoneId', d.milestones[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List my deals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/deals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "deals"
+              ]
+            },
+            "description": "Every deal the caller is a party to.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get deal + timeline",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/deals/{{dealId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "deals",
+                "{{dealId}}"
+              ]
+            },
+            "description": "The whole deal: state, drafted criteria, deliverables, reports, audit.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Confirm criteria (buyer)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/deals/{{dealId}}/criteria/confirm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "deals",
+                "{{dealId}}",
+                "criteria",
+                "confirm"
+              ]
+            },
+            "description": "Lock the checklist so the deal can be funded.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create PayPal order (buyer)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/deals/{{dealId}}/order",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "deals",
+                "{{dealId}}",
+                "order"
+              ]
+            },
+            "description": "Create the PayPal order to fund escrow. Returns an approve_url for the sandbox checkout.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d = pm.response.json();",
+                  "if (d && d.paypal_order_id) pm.collectionVariables.set('orderId', d.paypal_order_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Capture order (buyer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/deals/{{dealId}}/capture",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "deals",
+                "{{dealId}}",
+                "capture"
+              ]
+            },
+            "description": "Capture the approved order; the money is now held in escrow and the deal moves to FUNDED.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paypal_order_id\": \"{{orderId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "\u2014 or \u2014 Simulate funding (dev)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/paypal/simulate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhooks",
+                "paypal",
+                "simulate"
+              ]
+            },
+            "description": "Dev-only shortcut (ENABLE_WEBHOOK_SIMULATOR=true): fund the deal without the sandbox checkout popup. `custom_id` links the event to the deal. Refused in production.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"WH-SIM-{{$timestamp}}\",\n  \"event_type\": \"PAYMENT.CAPTURE.COMPLETED\",\n  \"resource\": {\n    \"id\": \"CAPTURE-{{$timestamp}}\",\n    \"custom_id\": \"{{dealId}}\",\n    \"status\": \"COMPLETED\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Submit deliverable (seller)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/deals/{{dealId}}/deliverable",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "deals",
+                "{{dealId}}",
+                "deliverable"
+              ]
+            },
+            "description": "The seller submits the work; the deal moves to DELIVERED. The content is stored verbatim and only ever read by the verifier as data \u2014 never as an instruction.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"text\",\n  \"content_ref\": \"Subject: Welcome to Budgetly\\n\\nHi there, and welcome to Budgetly! We're glad you're here.\\n\\n- Connect your bank to import transactions\\n- Set a budget for your top three categories\\n- Turn on weekly summaries\",\n  \"note\": \"Plain-text welcome email draft.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sellerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify (buyer)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/deals/{{dealId}}/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "deals",
+                "{{dealId}}",
+                "verify"
+              ]
+            },
+            "description": "Run the AI verifier. It judges the deliverable against each confirmed criterion and returns a verdict, a confidence score, per-criterion findings and the itemized met/unmet audit summary. At confidence >= 0.8 the policy auto-releases the payout.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get verification report",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/deals/{{dealId}}/verification",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "deals",
+                "{{dealId}}",
+                "verification"
+              ]
+            },
+            "description": "The stored report, including verified_criteria and unmet_or_missing_criteria.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Payouts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/deals/{{dealId}}/payouts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "deals",
+                "{{dealId}}",
+                "payouts"
+              ]
+            },
+            "description": "PayPal payout batches initiated for this deal on release.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PayPal activity",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/deals/{{dealId}}/paypal-activity",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "deals",
+                "{{dealId}}",
+                "paypal-activity"
+              ]
+            },
+            "description": "A unified timeline of every PayPal money movement on the deal.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Audit log",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/deals/{{dealId}}/audit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "deals",
+                "{{dealId}}",
+                "audit"
+              ]
+            },
+            "description": "The append-only state-transition log \u2014 who did what, and when.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3 \u00b7 Dispute",
+      "description": "Contest \u2192 mediator recommends \u2192 reviewer resolves.",
+      "item": [
+        {
+          "name": "Contest the verdict (buyer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/deals/{{dealId}}/contest",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "deals",
+                "{{dealId}}",
+                "contest"
+              ]
+            },
+            "description": "Open a dispute. The money stays in escrow; a human reviewer decides.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"The intro is three sentences, not two, and only lists two steps.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mediator recommendation (reviewer)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/deals/{{dealId}}/dispute/recommendation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "deals",
+                "{{dealId}}",
+                "dispute",
+                "recommendation"
+              ]
+            },
+            "description": "The AI mediator's advisory recommendation for the reviewer. Advisory only \u2014 the reviewer's decision is the one that moves money.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{reviewerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Resolve dispute (reviewer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/deals/{{dealId}}/dispute/resolve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "deals",
+                "{{dealId}}",
+                "dispute",
+                "resolve"
+              ]
+            },
+            "description": "The reviewer settles the deal. action is release | refund | split; seller_amount is required for a split.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"split\",\n  \"reasoning\": \"Partial delivery: the copy is usable but misses one requirement.\",\n  \"seller_amount\": \"25.00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{reviewerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4 \u00b7 Milestone deal",
+      "description": "Milestone deals reuse the core state machine, settled slice by slice.",
+      "item": [
+        {
+          "name": "Create milestone deal (buyer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/deals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "deals"
+              ]
+            },
+            "description": "A milestone deal; the amount is the sum of the milestones. Each milestone is funded once, then delivered and released independently. Captures dealId + milestoneId.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"seller_email\": \"{{sellerEmail}}\",\n  \"title\": \"Three-part brand kit\",\n  \"description\": \"A brand kit delivered in three milestones: logo, color system, and a one-page usage guide.\",\n  \"currency\": \"USD\",\n  \"milestones\": [\n    {\n      \"title\": \"Logo\",\n      \"description\": \"A primary vector logo in SVG.\",\n      \"amount\": \"60.00\"\n    },\n    {\n      \"title\": \"Color system\",\n      \"description\": \"A documented palette with tokens.\",\n      \"amount\": \"40.00\"\n    },\n    {\n      \"title\": \"Usage guide\",\n      \"description\": \"A one-page PDF usage guide.\",\n      \"amount\": \"50.00\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d = pm.response.json();",
+                  "if (d && d.id) {",
+                  "  pm.collectionVariables.set('dealId', d.id);",
+                  "  pm.test('deal created', () => pm.expect(d.state).to.eql('DRAFT'));",
+                  "}",
+                  "if (d && d.milestones && d.milestones.length) {",
+                  "  pm.collectionVariables.set('milestoneId', d.milestones[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Submit milestone deliverable (seller)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/deals/{{dealId}}/milestones/{{milestoneId}}/deliverable",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "deals",
+                "{{dealId}}",
+                "milestones",
+                "{{milestoneId}}",
+                "deliverable"
+              ]
+            },
+            "description": "Deliver one milestone. Reuses the same state machine as a simple deal.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"url\",\n  \"content_ref\": \"https://example.com/logo.svg\",\n  \"note\": \"Primary logo, SVG.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sellerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify milestone (buyer)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/deals/{{dealId}}/milestones/{{milestoneId}}/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "deals",
+                "{{dealId}}",
+                "milestones",
+                "{{milestoneId}}",
+                "verify"
+              ]
+            },
+            "description": "Verify one milestone. Settlement is scoped to that milestone's slice, against the cumulative spend mandate.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Resolve milestone dispute (reviewer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/deals/{{dealId}}/milestones/{{milestoneId}}/dispute/resolve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "deals",
+                "{{dealId}}",
+                "milestones",
+                "{{milestoneId}}",
+                "dispute",
+                "resolve"
+              ]
+            },
+            "description": "Reviewer settles a disputed milestone.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"release\",\n  \"reasoning\": \"The logo meets the brief.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{reviewerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5 \u00b7 Marketplace",
+      "description": "The marketplace of seller offers.",
+      "item": [
+        {
+          "name": "Browse offers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/offers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "offers"
+              ]
+            },
+            "description": "Public seller offers buyers can start a deal from.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create offer (seller)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/offers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "offers"
+              ]
+            },
+            "description": "List a service on the marketplace. Captures `offerId`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Logo design in 48 hours\",\n  \"description\": \"A primary vector logo with two revisions.\",\n  \"category\": \"Design\",\n  \"amount\": \"120.00\",\n  \"currency\": \"USD\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sellerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d = pm.response.json();",
+                  "if (d && d.id) pm.collectionVariables.set('offerId', d.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My offers (seller)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/offers/mine",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "offers",
+                "mine"
+              ]
+            },
+            "description": "The caller's own listings.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sellerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delist offer (seller)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/offers/{{offerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "offers",
+                "{{offerId}}"
+              ]
+            },
+            "description": "Remove a listing.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sellerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "6 \u00b7 Dashboards & account",
+      "description": "Read models behind the app's screens.",
+      "item": [
+        {
+          "name": "Home",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/home",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "home"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Home summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/home/summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "home",
+                "summary"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Wallet",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/wallet",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wallet"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Wallet overview (KPIs)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/wallet/overview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wallet",
+                "overview"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Explore",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/explore",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "explore"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/account",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "account"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update account",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/account",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "account"
+              ]
+            },
+            "description": "Update profile fields.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Sama the Buyer\",\n  \"paypal_account_ref\": \"sb-buyer@personal.example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{buyerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reviewer overview",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reviewer/overview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reviewer",
+                "overview"
+              ]
+            },
+            "description": "The reviewer operations dashboard feed.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{reviewerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
