@@ -132,6 +132,18 @@ export function useCreateDeal() {
   });
 }
 
+export function useResolveMilestoneDispute(dealId: string, milestoneId: string) {
+  const invalidate = useDealInvalidator(dealId);
+  return useMutation({
+    mutationFn: (input: {
+      action: SettlementAction;
+      reasoning: string;
+      seller_amount?: string | null;
+    }) => api.resolveMilestoneDispute(dealId, milestoneId, input),
+    onSuccess: invalidate,
+  });
+}
+
 export function useConfirmCriteria(dealId: string) {
   const invalidate = useDealInvalidator(dealId);
   return useMutation({

@@ -1,24 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useLocale, useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import { useSession } from "@/hooks/use-session";
-import { locales } from "@/lib/i18n";
-import { cn } from "@/lib/utils";
 
 export function AppHeader({ locale }: { locale: string }) {
   const t = useTranslations();
   const { user, signOut } = useSession();
   const router = useRouter();
-  const pathname = usePathname();
-  const activeLocale = useLocale();
-
-  const switchTo = (next: string) => {
-    const rest = pathname.replace(/^\/[^/]+/, "");
-    router.replace(`/${next}${rest || ""}`);
-  };
 
   return (
     <header className="bg-accent text-white">
@@ -37,25 +28,6 @@ export function AppHeader({ locale }: { locale: string }) {
           <span className="hidden rounded-full bg-white/15 px-2.5 py-1 text-xs font-medium text-white sm:inline">
             {t("app.sandboxNotice")}
           </span>
-
-          <nav aria-label={t("nav.language")} className="flex items-center gap-1">
-            {locales.map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => switchTo(option)}
-                aria-current={activeLocale === option ? "true" : undefined}
-                className={cn(
-                  "rounded px-2 py-1 text-xs font-medium uppercase transition-colors",
-                  activeLocale === option
-                    ? "bg-white text-accent"
-                    : "text-white/70 hover:text-white",
-                )}
-              >
-                {option}
-              </button>
-            ))}
-          </nav>
 
           {user ? (
             <button

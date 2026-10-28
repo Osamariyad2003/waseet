@@ -93,6 +93,30 @@ export function VerificationReport({ report, isRunning }: VerificationReportProp
 
       <ConfidenceMeter confidence={report.confidence} />
 
+      {report.verified_criteria.length > 0 || report.unmet_or_missing_criteria.length > 0 ? (
+        <div className="space-y-2">
+          <h3 className="text-xs font-medium uppercase tracking-wide text-ink-faint">
+            {t("verification.auditSummary")}
+          </h3>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {report.verified_criteria.length > 0 ? (
+              <AuditList
+                tone="met"
+                heading={t("verification.verifiedCriteria")}
+                items={report.verified_criteria}
+              />
+            ) : null}
+            {report.unmet_or_missing_criteria.length > 0 ? (
+              <AuditList
+                tone="unmet"
+                heading={t("verification.unmetCriteria")}
+                items={report.unmet_or_missing_criteria}
+              />
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
       {report.per_criterion.length > 0 ? (
         <div className="space-y-2">
           <h3 className="text-xs font-medium uppercase tracking-wide text-ink-faint">
@@ -151,6 +175,51 @@ export function VerificationReport({ report, isRunning }: VerificationReportProp
           {t("verification.advisory")}
         </p>
       ) : null}
+    </div>
+  );
+}
+
+/** One side of the audit summary: the met, or the unmet, conditions. */
+function AuditList({
+  tone,
+  heading,
+  items,
+}: {
+  tone: "met" | "unmet";
+  heading: string;
+  items: string[];
+}) {
+  const met = tone === "met";
+  return (
+    <div
+      className={cn(
+        "rounded-lg border p-3",
+        met
+          ? "border-status-paid/20 bg-status-paid-soft/40"
+          : "border-status-attention/20 bg-status-attention-soft/40",
+      )}
+    >
+      <p
+        className={cn(
+          "text-xs font-semibold uppercase tracking-wide",
+          met ? "text-status-paid" : "text-status-attention",
+        )}
+      >
+        {heading} · {items.length}
+      </p>
+      <ul className="mt-2 space-y-1.5">
+        {items.map((item, index) => (
+          <li key={index} className="flex gap-2 text-sm text-ink">
+            <span
+              aria-hidden
+              className={cn(met ? "text-status-paid" : "text-status-attention")}
+            >
+              {met ? "✓" : "✕"}
+            </span>
+            <span className="min-w-0 flex-1">{item}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

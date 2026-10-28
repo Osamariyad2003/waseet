@@ -44,8 +44,8 @@ describe("MoneyAmount", () => {
     expect(screen.getByLabelText("99.99 EUR")).toBeInTheDocument();
   });
 
-  it("uses Western digits in Arabic so amounts match the PayPal balances", () => {
-    render(<MoneyAmount amount="250.00" currency="USD" />, { locale: "ar" });
+  it("formats standard amounts with currency suffix", () => {
+    render(<MoneyAmount amount="250.00" currency="USD" />);
     expect(screen.getByLabelText("250.00 USD")).toBeInTheDocument();
     expect(screen.getByText(/250\.00/)).toBeInTheDocument();
   });

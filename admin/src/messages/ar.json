@@ -143,6 +143,9 @@
     },
     "confidence": "درجة الثقة",
     "reasoning": "التفسير",
+    "auditSummary": "ملخص التدقيق",
+    "verifiedCriteria": "الشروط المستوفاة",
+    "unmetCriteria": "الشروط غير المستوفاة أو الناقصة",
     "perCriterion": "لكل شرط",
     "pass": "مُحقَّق",
     "fail": "غير مُحقَّق",
@@ -274,5 +277,9 @@
     "amount": "المبلغ",
     "state": "الحالة",
     "updated": "آخر تحديث"
+  },
+  "milestones": {
+    "title": "المراحل",
+    "subtitle": "راجع كل مرحلة؛ واحسم أيًّا منها محل نزاع."
   }
 }

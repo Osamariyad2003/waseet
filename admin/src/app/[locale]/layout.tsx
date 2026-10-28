@@ -26,8 +26,8 @@ export default async function LocaleLayout({
   return (
     // dir is set here, on the server, so the first paint is already correct
     // in Arabic rather than flipping after hydration.
-    <html lang={locale} dir={direction(locale)}>
-      <body className="min-h-dvh antialiased">
+    <html lang={locale} dir={direction(locale)} suppressHydrationWarning>
+      <body className="min-h-dvh antialiased" suppressHydrationWarning>
         <NextIntlClientProvider messages={messages}>
           <Providers>
             <AppHeader locale={locale} />

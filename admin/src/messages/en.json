@@ -143,6 +143,9 @@
     },
     "confidence": "Confidence",
     "reasoning": "Reasoning",
+    "auditSummary": "Audit summary",
+    "verifiedCriteria": "Conditions met",
+    "unmetCriteria": "Conditions unmet or missing",
     "perCriterion": "Per criterion",
     "pass": "Met",
     "fail": "Not met",
@@ -274,5 +277,9 @@
     "amount": "Amount",
     "state": "State",
     "updated": "Updated"
+  },
+  "milestones": {
+    "title": "Milestones",
+    "subtitle": "Review each milestone; resolve any that are disputed."
   }
 }

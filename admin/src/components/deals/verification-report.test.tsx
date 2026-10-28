@@ -28,6 +28,11 @@ function report(overrides: Partial<Report> = {}): Report {
         note: "The file is an SVG.",
       },
     ],
+    verified_criteria: [
+      "The deliverable is a working link.",
+      "The logo is a vector file.",
+    ],
+    unmet_or_missing_criteria: [],
     decided_by: "ai",
     recommendation: null,
     decided_at: "2026-10-20T10:00:00Z",
@@ -47,8 +52,27 @@ describe("VerificationReport", () => {
 
   it("lists each criterion with its finding", () => {
     render(<VerificationReport report={report()} />);
-    expect(screen.getByText("The deliverable is a working link.")).toBeInTheDocument();
+    // The condition text appears in both the audit summary and the detail list.
+    expect(screen.getAllByText("The deliverable is a working link.").length).toBeGreaterThan(0);
     expect(screen.getByText("The link resolves to an SVG.")).toBeInTheDocument();
+  });
+
+  it("groups conditions into a met / unmet audit summary", () => {
+    render(
+      <VerificationReport
+        report={report({
+          verdict: "fail",
+          per_criterion: [
+            { criterion_id: "c1", text: "Has a subject line.", pass: true, note: "Present." },
+            { criterion_id: "c2", text: "Exactly three bullets.", pass: false, note: "Had four." },
+          ],
+          verified_criteria: ["Has a subject line."],
+          unmet_or_missing_criteria: ["Exactly three bullets."],
+        })}
+      />,
+    );
+    expect(screen.getByText("Conditions met · 1")).toBeInTheDocument();
+    expect(screen.getByText("Conditions unmet or missing · 1")).toBeInTheDocument();
   });
 
   it("states that an AI verdict is advisory", () => {
@@ -77,6 +101,8 @@ describe("VerificationReport", () => {
               note: "The file is a raster PNG.",
             },
           ],
+          verified_criteria: [],
+          unmet_or_missing_criteria: ["The logo is a vector file."],
         })}
       />,
     );

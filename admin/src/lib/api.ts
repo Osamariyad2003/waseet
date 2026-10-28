@@ -18,6 +18,7 @@ import type {
   DeliverableType,
   LoginResponse,
   MediationRecommendation,
+  MilestoneDisputeResult,
   ReviewerOverview,
   ResolveDisputeResponse,
   SettlementAction,
@@ -223,4 +224,21 @@ export const api = {
         seller_amount: input.seller_amount ?? null,
       },
     }),
+
+  resolveMilestoneDispute: (
+    dealId: string,
+    milestoneId: string,
+    input: { action: SettlementAction; reasoning: string; seller_amount?: string | null },
+  ) =>
+    request<MilestoneDisputeResult>(
+      `/deals/${dealId}/milestones/${milestoneId}/dispute/resolve`,
+      {
+        method: "POST",
+        body: {
+          action: input.action,
+          reasoning: input.reasoning,
+          seller_amount: input.seller_amount ?? null,
+        },
+      },
+    ),
 };

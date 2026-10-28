@@ -72,6 +72,9 @@ export interface VerificationReport {
   confidence: string;
   reasoning: string;
   per_criterion: CriterionFinding[];
+  // Itemized audit view derived from per_criterion by the backend.
+  verified_criteria: string[];
+  unmet_or_missing_criteria: string[];
   decided_by: DecidedBy;
   recommendation: string | null;
   decided_at: string;
@@ -126,6 +129,31 @@ export interface Deal {
   criteria: Criterion[];
   deliverables: Deliverable[];
   verification_reports: VerificationReport[];
+  milestones: Milestone[];
+}
+
+export interface Milestone {
+  id: string;
+  position: number;
+  title: string;
+  description: string;
+  amount: string;
+  state: DealState;
+  payout_batch_id: string | null;
+  platform_fee: string | null;
+  criteria: Criterion[];
+  deliverables: Deliverable[];
+  verification_reports: VerificationReport[];
+}
+
+export interface MilestoneDisputeResult {
+  milestone: Milestone;
+  action: SettlementAction;
+  to_seller: string;
+  to_buyer: string;
+  platform_fee: string;
+  paypal_reference: string | null;
+  already_settled: boolean;
 }
 
 export interface DealWithTimeline extends Deal {

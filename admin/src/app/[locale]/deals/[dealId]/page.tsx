@@ -13,11 +13,16 @@ import { StatusBadge } from "@/components/deals/status-badge";
 import { VerificationReport } from "@/components/deals/verification-report";
 import { Button } from "@/components/ui/button";
 import { Card, CardSubtitle, CardTitle } from "@/components/ui/card";
-import { useDeal, useRecommendation, useResolveDispute } from "@/hooks/use-deals";
+import {
+  useDeal,
+  useRecommendation,
+  useResolveDispute,
+  useResolveMilestoneDispute,
+} from "@/hooks/use-deals";
 import { useRequireSession } from "@/hooks/use-session";
 import { ApiError } from "@/lib/api";
 import { statusStyle } from "@/lib/status";
-import { TERMINAL_STATES, type DealWithTimeline } from "@/lib/types";
+import { TERMINAL_STATES, type DealWithTimeline, type Milestone } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 /**
@@ -84,6 +89,10 @@ export default function AdminDealPage() {
       ) : null}
 
       {deal.state === "DISPUTED" ? <DisputeCard deal={deal} onResolved={() => void refetch()} /> : null}
+
+      {deal.milestones.length > 0 ? (
+        <MilestonesReviewCard deal={deal} onResolved={() => void refetch()} />
+      ) : null}
 
       <Card>
         <CardTitle>{t("timeline.title")}</CardTitle>
@@ -218,6 +227,84 @@ function DeliverableCard({ deal }: { deal: DealWithTimeline }) {
         {latest.note ? <p className="text-sm text-ink-muted">{latest.note}</p> : null}
       </div>
     </Card>
+  );
+}
+
+function MilestonesReviewCard({
+  deal,
+  onResolved,
+}: {
+  deal: DealWithTimeline;
+  onResolved: () => void;
+}) {
+  const t = useTranslations();
+  return (
+    <Card>
+      <CardTitle>{t("milestones.title")}</CardTitle>
+      <CardSubtitle>{t("milestones.subtitle")}</CardSubtitle>
+      <ul className="mt-5 space-y-4">
+        {deal.milestones.map((milestone) => (
+          <li key={milestone.id}>
+            <MilestoneRow deal={deal} milestone={milestone} onResolved={onResolved} />
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+function MilestoneRow({
+  deal,
+  milestone,
+  onResolved,
+}: {
+  deal: DealWithTimeline;
+  milestone: Milestone;
+  onResolved: () => void;
+}) {
+  const t = useTranslations();
+  const resolve = useResolveMilestoneDispute(deal.id, milestone.id);
+  const report = milestone.verification_reports[milestone.verification_reports.length - 1];
+  const style = statusStyle(milestone.state);
+
+  return (
+    <div className={cn("overflow-hidden rounded-card border", style.surface)}>
+      <div className="flex items-start justify-between gap-3 p-4">
+        <div className="min-w-0">
+          <h3 className="truncate font-semibold text-ink">
+            {milestone.position + 1}. {milestone.title}
+          </h3>
+          {milestone.description ? (
+            <p className="mt-1 text-sm text-ink-muted">{milestone.description}</p>
+          ) : null}
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <MoneyAmount amount={milestone.amount} currency={deal.currency} size="md" />
+          <StatusBadge state={milestone.state} />
+        </div>
+      </div>
+
+      {/* Only a disputed milestone needs a decision. */}
+      {milestone.state === "DISPUTED" ? (
+        <div className="border-t border-border-subtle/60 bg-surface p-4">
+          {report ? (
+            <div className="mb-4">
+              <VerificationReport report={report} />
+            </div>
+          ) : null}
+          <DecisionPanel
+            dealAmount={milestone.amount}
+            currency={deal.currency}
+            onSubmit={async (values) => {
+              await resolve.mutateAsync(values);
+              onResolved();
+            }}
+            isSubmitting={resolve.isPending}
+            error={resolve.error instanceof ApiError ? resolve.error.message : undefined}
+          />
+        </div>
+      ) : null}
+    </div>
   );
 }
 
