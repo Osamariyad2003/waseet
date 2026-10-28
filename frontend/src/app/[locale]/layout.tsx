@@ -3,7 +3,7 @@ import { getMessages, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import { Providers } from "@/app/providers";
-import { AppHeader } from "@/components/app-header";
+import { AppShell } from "@/components/layout/app-shell";
 import { direction, isLocale, locales } from "@/lib/i18n";
 
 export function generateStaticParams() {
@@ -26,15 +26,13 @@ export default async function LocaleLayout({
   return (
     // dir is set here, on the server, so the first paint is already correct
     // in Arabic rather than flipping after hydration.
-    <html lang={locale} dir={direction(locale)}>
-      <body className="min-h-dvh antialiased">
+    <html lang={locale} dir={direction(locale)} suppressHydrationWarning>
+      <body className="min-h-dvh antialiased" suppressHydrationWarning>
         <NextIntlClientProvider messages={messages}>
           <Providers>
-            <AppHeader locale={locale} />
-            {/* The width constraint lives on each page, not here: the deal
-                timeline stays narrow (max-w-3xl) while the reviewer
-                dashboard goes wide (max-w-6xl). */}
-            <main className="w-full px-4 py-6 sm:px-6 sm:py-10">{children}</main>
+            <AppShell locale={locale}>
+              {children}
+            </AppShell>
           </Providers>
         </NextIntlClientProvider>
       </body>

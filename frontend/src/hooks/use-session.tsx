@@ -37,15 +37,22 @@ interface SessionValue {
 
 const SessionContext = createContext<SessionValue | null>(null);
 
-function readStored(): { token: string; user: User } | null {
+function readToken(): string | null {
   if (typeof window === "undefined") return null;
   try {
-    const token = window.sessionStorage.getItem(TOKEN_KEY);
-    const rawUser = window.sessionStorage.getItem(USER_KEY);
-    if (!token || !rawUser) return null;
-    return { token, user: JSON.parse(rawUser) as User };
+    return window.sessionStorage.getItem(TOKEN_KEY);
   } catch {
     // Private mode, or storage disabled. Not an error — just no session.
+    return null;
+  }
+}
+
+function readStoredUser(): User | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const rawUser = window.sessionStorage.getItem(USER_KEY);
+    return rawUser ? (JSON.parse(rawUser) as User) : null;
+  } catch {
     return null;
   }
 }
@@ -58,20 +65,31 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   // present may still be expired, and we would rather find out now than on
   // the user's first action.
   useEffect(() => {
-    const stored = readStored();
-    if (!stored) {
+    const token = readToken();
+    if (!token) {
       setIsLoading(false);
       return;
     }
 
-    setAuthToken(stored.token);
-    setUser(stored.user);
+    setAuthToken(token);
+    // Show the cached user immediately when we have one; when only the token
+    // survived (a partial write, or the user cache was cleared), stay loading
+    // and recover the user from the server rather than bouncing to /login.
+    const cachedUser = readStoredUser();
+    if (cachedUser) setUser(cachedUser);
 
     let cancelled = false;
     api
       .me()
       .then((confirmed) => {
-        if (!cancelled) setUser(confirmed);
+        if (cancelled) return;
+        setUser(confirmed);
+        // Backfill the cache so the next load is optimistic.
+        try {
+          window.sessionStorage.setItem(USER_KEY, JSON.stringify(confirmed));
+        } catch {
+          // Storage unavailable: the session still works for this page view.
+        }
       })
       .catch(() => {
         if (cancelled) return;

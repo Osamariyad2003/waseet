@@ -7,7 +7,11 @@
  */
 
 import type {
+  AccountProfile,
+  ActivityEntry,
   ApiErrorBody,
+  CatalogProduct,
+  Certificate,
   ClientTokenResponse,
   CreateOrderResponse,
   Deal,
@@ -16,13 +20,19 @@ import type {
   DealWithTimeline,
   Deliverable,
   DeliverableType,
+  ExploreResponse,
+  HomeSummary,
   LoginResponse,
   MediationRecommendation,
+  MilestoneVerificationResult,
+  Offer,
+  PayoutView,
   ResolveDisputeResponse,
   SettlementAction,
   User,
   VerificationReport,
   VerificationResult,
+  WalletOverview,
 } from "./types";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
@@ -96,7 +106,7 @@ export function getAuthToken(): string | null {
 }
 
 interface RequestOptions {
-  method?: "GET" | "POST";
+  method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   body?: unknown;
   signal?: AbortSignal;
 }
@@ -167,14 +177,20 @@ export const api = {
     seller_email: string;
     title: string;
     description: string;
-    amount: string;
+    amount?: string;
     currency: string;
+    milestones?: { title: string; description: string; amount: string }[];
   }) => request<Deal>("/deals", { method: "POST", body: input }),
 
   confirmCriteria: (dealId: string) =>
     request<Deal>(`/deals/${dealId}/criteria/confirm`, { method: "POST" }),
 
   getAudit: (dealId: string) => request<DealWithTimeline["timeline"]>(`/deals/${dealId}/audit`),
+
+  getPayouts: (dealId: string) => request<PayoutView[]>(`/deals/${dealId}/payouts`),
+
+  getPaypalActivity: (dealId: string) =>
+    request<ActivityEntry[]>(`/deals/${dealId}/paypal-activity`),
 
   // --- funding ------------------------------------------------------------
   getClientToken: () => request<ClientTokenResponse>("/paypal/client-token"),
@@ -197,6 +213,22 @@ export const api = {
   verify: (dealId: string) =>
     request<VerificationResult>(`/deals/${dealId}/verify`, { method: "POST" }),
 
+  // --- milestones ---------------------------------------------------------
+  submitMilestoneDeliverable: (
+    dealId: string,
+    milestoneId: string,
+    input: { type: DeliverableType; content_ref: string; note?: string | null },
+  ) =>
+    request<Deliverable>(`/deals/${dealId}/milestones/${milestoneId}/deliverable`, {
+      method: "POST",
+      body: input,
+    }),
+
+  verifyMilestone: (dealId: string, milestoneId: string) =>
+    request<MilestoneVerificationResult>(`/deals/${dealId}/milestones/${milestoneId}/verify`, {
+      method: "POST",
+    }),
+
   getVerification: (dealId: string) =>
     request<VerificationReport>(`/deals/${dealId}/verification`),
 
@@ -207,7 +239,7 @@ export const api = {
   getRecommendation: (dealId: string) =>
     request<MediationRecommendation>(`/deals/${dealId}/dispute/recommendation`),
 
-  resolveDispute: (
+    resolveDispute: (
     dealId: string,
     input: { action: SettlementAction; reasoning: string; seller_amount?: string | null },
   ) =>
@@ -219,4 +251,41 @@ export const api = {
         seller_amount: input.seller_amount ?? null,
       },
     }),
+
+  // --- wallet / explore / account / home -----------------------------------
+  getWalletOverview: () => request<WalletOverview>("/wallet/overview"),
+
+  getExplore: () => request<ExploreResponse>("/explore"),
+
+  getAccountProfile: () => request<AccountProfile>("/account/profile"),
+
+  updateAccountProfile: (input: { full_name?: string; paypal_account_ref?: string }) =>
+    request<AccountProfile>("/account/profile", { method: "PATCH", body: input }),
+
+  getHomeSummary: () => request<HomeSummary>("/home/summary"),
+
+  // --- marketplace --------------------------------------------------------
+  // --- public proof-of-escrow certificate --------------------------------
+  getCertificate: (dealId: string) => request<Certificate>(`/verify/${dealId}`),
+
+  // --- product catalog (Shop & Escrow) -----------------------------------
+  searchCatalog: (query: string, limit = 12) =>
+    request<CatalogProduct[]>(
+      `/catalog/search?q=${encodeURIComponent(query)}&limit=${limit}`,
+    ),
+
+  listOffers: () => request<Offer[]>("/offers"),
+
+  getMyOffers: () => request<Offer[]>("/offers/mine"),
+
+  createOffer: (input: {
+    title: string;
+    description: string;
+    category: string;
+    amount: string;
+    currency: string;
+  }) => request<Offer>("/offers", { method: "POST", body: input }),
+
+  delistOffer: (offerId: string) =>
+    request<void>(`/offers/${offerId}`, { method: "DELETE" }),
 };

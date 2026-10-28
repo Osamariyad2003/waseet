@@ -9,15 +9,19 @@ import { useState } from "react";
 import { CriteriaChecklist } from "@/components/deals/criteria-checklist";
 import { DealTimeline } from "@/components/deals/deal-timeline";
 import { DeliverableUploader } from "@/components/deals/deliverable-uploader";
+import { MilestonesSection } from "@/components/deals/milestones-section";
 import { MoneyAmount } from "@/components/deals/money-amount";
+import { PaypalActivity } from "@/components/deals/paypal-activity";
 import { PayPalCheckoutButton } from "@/components/deals/paypal-checkout-button";
 import { StatusBadge } from "@/components/deals/status-badge";
 import {
   VerificationReport,
   VerificationRunning,
 } from "@/components/deals/verification-report";
+import successAnim from "@/animations/success.json";
 import { Button } from "@/components/ui/button";
 import { Card, CardSubtitle, CardTitle } from "@/components/ui/card";
+import { LottieAnimation } from "@/components/ui/lottie";
 import { Field, Textarea } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -72,6 +76,7 @@ export default function DealPage() {
   const viewerRole: Role = user.role;
   const isBuyer = deal.buyer.id === user.id;
   const isSeller = deal.seller.id === user.id;
+  const isMilestone = deal.milestones.length > 0;
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
@@ -83,9 +88,11 @@ export default function DealPage() {
 
       <DealHero deal={deal} />
 
-      <NextStep deal={deal} isBuyer={isBuyer} isSeller={isSeller} />
+      {!isMilestone ? <NextStep deal={deal} isBuyer={isBuyer} isSeller={isSeller} /> : null}
 
-      {/* DRAFT: confirm the checklist, then fund. */}
+      {/* DRAFT: confirm the checklist, then fund. For a milestone deal the
+          checklist is every milestone's criteria, confirmed together before
+          funding. */}
       {deal.state === "DRAFT" ? (
         <>
           <Card>
@@ -98,34 +105,46 @@ export default function DealPage() {
 
           {isBuyer ? <FundingCard deal={deal} onFunded={() => void refetch()} /> : null}
         </>
+      ) : isMilestone ? (
+        /* Funded milestone deal: each milestone shows its own checklist and
+           runs its own deliver → verify → release flow. */
+        <MilestonesSection deal={deal} isBuyer={isBuyer} isSeller={isSeller} />
       ) : (
-        <Card>
-          <CardTitle>{t("criteria.title")}</CardTitle>
-          <div className="mt-4">
-            <CriteriaChecklist
-              criteria={deal.criteria}
-              viewerRole={viewerRole}
-              canConfirm={false}
-            />
-          </div>
-        </Card>
+        <>
+          <Card>
+            <CardTitle>{t("criteria.title")}</CardTitle>
+            <div className="mt-4">
+              <CriteriaChecklist
+                criteria={deal.criteria}
+                viewerRole={viewerRole}
+                canConfirm={false}
+              />
+            </div>
+          </Card>
+
+          {/* FUNDED: the seller delivers. */}
+          {deal.state === "FUNDED" && isSeller ? <DeliverCard deal={deal} /> : null}
+
+          {/* DELIVERED: the deliverable, and the trigger to verify. */}
+          {deal.deliverables.length > 0 ? <DeliverableCard deal={deal} /> : null}
+          {deal.state === "DELIVERED" ? (
+            <VerifyCard deal={deal} canVerify={isBuyer || isSeller} />
+          ) : null}
+
+          {/* VERIFYING: visible progress rather than a frozen screen. */}
+          {deal.state === "VERIFYING" ? <VerificationRunning /> : null}
+
+          {/* The report, once there is one. */}
+          <ReportCard deal={deal} isBuyer={isBuyer} />
+        </>
       )}
-
-      {/* FUNDED: the seller delivers. */}
-      {deal.state === "FUNDED" && isSeller ? <DeliverCard deal={deal} /> : null}
-
-      {/* DELIVERED: the deliverable, and the trigger to verify. */}
-      {deal.deliverables.length > 0 ? <DeliverableCard deal={deal} /> : null}
-      {deal.state === "DELIVERED" ? <VerifyCard deal={deal} canVerify={isBuyer || isSeller} /> : null}
-
-      {/* VERIFYING: visible progress rather than a frozen screen. */}
-      {deal.state === "VERIFYING" ? <VerificationRunning /> : null}
-
-      {/* The report, once there is one. */}
-      <ReportCard deal={deal} isBuyer={isBuyer} />
 
       {/* DISPUTED: a reviewer decides, in the admin app. */}
       {deal.state === "DISPUTED" ? <DisputeCard deal={deal} /> : null}
+
+      {/* Live PayPal money trail — order, capture, payouts, refund — each
+          read from PayPal. Renders once there is anything to show. */}
+      <PaypalActivity dealId={deal.id} />
 
       <Card>
         <CardTitle>{t("timeline.title")}</CardTitle>
@@ -151,6 +170,7 @@ export default function DealPage() {
  */
 function OutcomeConfirmation({ deal }: { deal: DealWithTimeline }) {
   const t = useTranslations();
+  const locale = useLocale();
   if (!TERMINAL_STATES.includes(deal.state)) return null;
 
   const style = statusStyle(deal.state);
@@ -165,18 +185,30 @@ function OutcomeConfirmation({ deal }: { deal: DealWithTimeline }) {
       className="overflow-hidden rounded-card shadow-sheet"
     >
       <div className="bg-accent px-6 py-8 text-center text-white">
-        <motion.span
-          initial={{ scale: 0.6, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.1, type: "spring", stiffness: 260, damping: 18 }}
-          aria-hidden
-          className={cn(
-            "mx-auto flex size-16 items-center justify-center rounded-full bg-white text-2xl font-bold",
-            style.text,
-          )}
-        >
-          {style.glyph}
-        </motion.span>
+        {deal.state === "RELEASED" || deal.state === "SPLIT" ? (
+          // A paid-out outcome draws a Lottie checkmark on a white disc.
+          <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-white">
+            <LottieAnimation
+              animationData={successAnim}
+              loop={false}
+              className="size-12"
+              ariaLabel={t(`confirmation.${deal.state}.title`)}
+            />
+          </div>
+        ) : (
+          <motion.span
+            initial={{ scale: 0.6, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.1, type: "spring", stiffness: 260, damping: 18 }}
+            aria-hidden
+            className={cn(
+              "mx-auto flex size-16 items-center justify-center rounded-full bg-white text-2xl font-bold",
+              style.text,
+            )}
+          >
+            {style.glyph}
+          </motion.span>
+        )}
         <h2 className="mt-4 text-lg font-semibold">
           {t(`confirmation.${deal.state}.title`)}
         </h2>
@@ -191,7 +223,51 @@ function OutcomeConfirmation({ deal }: { deal: DealWithTimeline }) {
           <span className="tabular truncate font-medium text-ink-muted">{reference}</span>
         </div>
       ) : null}
+
+      <ShareProof dealId={deal.id} locale={locale} />
     </motion.section>
+  );
+}
+
+/** A shareable public link to this deal's proof-of-escrow certificate. */
+function ShareProof({ dealId, locale }: { dealId: string; locale: string }) {
+  const t = useTranslations();
+  const [copied, setCopied] = useState(false);
+
+  const path = `/${locale}/verify/${dealId}`;
+  const url = typeof window !== "undefined" ? `${window.location.origin}${path}` : path;
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard blocked (e.g. insecure context) — the Open link still works.
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle/70 bg-surface px-6 py-3">
+      <div className="min-w-0">
+        <p className="text-xs font-medium uppercase tracking-wide text-ink-faint">
+          {t("certificate.share")}
+        </p>
+        <p className="truncate font-mono text-xs text-ink-muted">{path}</p>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <Button type="button" variant="secondary" onClick={copy}>
+          {copied ? t("certificate.copied") : t("certificate.copy")}
+        </Button>
+        <Link
+          href={path}
+          target="_blank"
+          className="inline-flex h-9 items-center rounded-lg bg-accent px-3 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+        >
+          {t("certificate.open")}
+        </Link>
+      </div>
+    </div>
   );
 }
 

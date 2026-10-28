@@ -59,6 +59,37 @@ export interface Deliverable {
   submitted_at: string;
 }
 
+export interface Certificate {
+  deal_id: string;
+  seal: string;
+  title: string;
+  amount: string;
+  currency: string;
+  outcome: "released" | "refunded" | "split";
+  state: DealState;
+  created_at: string;
+  verdict: Verdict | null;
+  confidence: string | null;
+  reasoning: string | null;
+  verified_criteria: string[];
+  unmet_or_missing_criteria: string[];
+  decided_by: DecidedBy | null;
+  decided_at: string | null;
+  advisory_notice: string;
+}
+
+export interface CatalogProduct {
+  id: string;
+  title: string;
+  brand: string | null;
+  description: string | null;
+  image_url: string | null;
+  price: string | null;
+  currency: string;
+  available: boolean;
+  buy_url: string | null;
+}
+
 export interface CriterionFinding {
   criterion_id: string;
   text: string;
@@ -72,6 +103,9 @@ export interface VerificationReport {
   confidence: string;
   reasoning: string;
   per_criterion: CriterionFinding[];
+  // Itemized audit view derived from per_criterion by the backend.
+  verified_criteria: string[];
+  unmet_or_missing_criteria: string[];
   decided_by: DecidedBy;
   recommendation: string | null;
   decided_at: string;
@@ -107,6 +141,77 @@ export interface DealSummary {
   updated_at: string;
 }
 
+export interface Milestone {
+  id: string;
+  position: number;
+  title: string;
+  description: string;
+  amount: string;
+  state: DealState;
+  payout_batch_id: string | null;
+  platform_fee: string | null;
+  criteria: Criterion[];
+  deliverables: Deliverable[];
+  verification_reports: VerificationReport[];
+}
+
+export interface MilestoneVerificationResult {
+  milestone: Milestone;
+  released: boolean;
+  policy_outcome: string;
+  policy_reason: string;
+  advisory_notice: string;
+}
+
+export interface PayoutItemStatus {
+  transaction_id: string | null;
+  transaction_status: string;
+  amount: string;
+  currency: string;
+  receiver: string;
+}
+
+export interface PayoutStatus {
+  payout_batch_id: string;
+  batch_status: string;
+  amount: string | null;
+  currency: string | null;
+  time_created: string | null;
+  items: PayoutItemStatus[];
+}
+
+export interface PayoutView {
+  source: string;
+  milestone_id: string | null;
+  status: PayoutStatus | null;
+  error: string | null;
+}
+
+export interface Offer {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  amount: string;
+  currency: string;
+  active: boolean;
+  created_at: string;
+  seller: User;
+}
+
+export type ActivityKind = "order" | "capture" | "payout" | "refund";
+
+export interface ActivityEntry {
+  kind: ActivityKind;
+  label: string;
+  reference_id: string;
+  status: string;
+  amount: string | null;
+  currency: string | null;
+  receiver: string | null;
+  error: string | null;
+}
+
 export interface Deal {
   id: string;
   title: string;
@@ -126,6 +231,7 @@ export interface Deal {
   criteria: Criterion[];
   deliverables: Deliverable[];
   verification_reports: VerificationReport[];
+  milestones: Milestone[];
 }
 
 export interface DealWithTimeline extends Deal {
@@ -188,3 +294,61 @@ export interface ApiErrorBody {
     fields?: { field: string; message: string }[];
   };
 }
+
+export interface WalletOverview {
+  held: StatTile;
+  released: StatTile;
+  refunded: StatTile;
+  pending: StatTile;
+  deals: DealSummary[];
+}
+
+export interface LifecycleStep {
+  step: number;
+  key: string;
+  title: string;
+  description: string;
+}
+
+export interface SafetyPillar {
+  key: string;
+  title: string;
+  description: string;
+}
+
+export interface ExploreResponse {
+  title: string;
+  subtitle: string;
+  steps: LifecycleStep[];
+  safety_pillars: SafetyPillar[];
+  platform_info: {
+    confidence_threshold: string;
+    platform_fee_percent: string;
+    sandbox_mode: boolean;
+    ai_provider: string;
+    supported_deliverable_types: DeliverableType[];
+  };
+  stats: Record<string, any>;
+}
+
+export interface AccountProfile {
+  id: string;
+  email: string;
+  full_name: string;
+  role: Role;
+  paypal_account_ref: string | null;
+  created_at: string;
+  total_deals: number;
+  deals_as_buyer: number;
+  deals_as_seller: number;
+  total_transacted_volume: string;
+  currency: string;
+}
+
+export interface HomeSummary {
+  user: User;
+  active_deals_count: number;
+  action_required_count: number;
+  recent_deals: DealSummary[];
+}
+

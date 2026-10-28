@@ -16,12 +16,14 @@ import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tan
 import { ApiError, api } from "@/lib/api";
 import { isInFlight } from "@/lib/status";
 import type {
+  ActivityEntry,
   AuditEntry,
   DealState,
   DealSummary,
   DealWithTimeline,
   DeliverableType,
   MediationRecommendation,
+  PayoutView,
   SettlementAction,
   VerificationReport,
 } from "@/lib/types";
@@ -31,6 +33,8 @@ export const dealKeys = {
   list: (state?: DealState) => ["deals", "list", state ?? "all"] as const,
   detail: (dealId: string) => ["deals", "detail", dealId] as const,
   audit: (dealId: string) => ["deals", "audit", dealId] as const,
+  payouts: (dealId: string) => ["deals", "payouts", dealId] as const,
+  paypalActivity: (dealId: string) => ["deals", "paypal-activity", dealId] as const,
   verification: (dealId: string) => ["deals", "verification", dealId] as const,
   recommendation: (dealId: string) => ["deals", "recommendation", dealId] as const,
 };
@@ -60,6 +64,27 @@ export function useDeal(dealId: string): UseQueryResult<DealWithTimeline> {
     // a VERIFYING deal is the honest version of that without websockets.
     refetchInterval: (query) =>
       query.state.data && isInFlight(query.state.data.state) ? 2000 : false,
+  });
+}
+
+export function usePayouts(dealId: string, enabled = true): UseQueryResult<PayoutView[]> {
+  return useQuery({
+    queryKey: dealKeys.payouts(dealId),
+    queryFn: () => api.getPayouts(dealId),
+    enabled,
+    retry: retryPolicy,
+  });
+}
+
+export function usePaypalActivity(
+  dealId: string,
+  enabled = true,
+): UseQueryResult<ActivityEntry[]> {
+  return useQuery({
+    queryKey: dealKeys.paypalActivity(dealId),
+    queryFn: () => api.getPaypalActivity(dealId),
+    enabled,
+    retry: retryPolicy,
   });
 }
 
@@ -106,6 +131,8 @@ function useDealInvalidator(dealId: string) {
       queryClient.invalidateQueries({ queryKey: dealKeys.detail(dealId) }),
       queryClient.invalidateQueries({ queryKey: dealKeys.audit(dealId) }),
       queryClient.invalidateQueries({ queryKey: dealKeys.verification(dealId) }),
+      queryClient.invalidateQueries({ queryKey: dealKeys.payouts(dealId) }),
+      queryClient.invalidateQueries({ queryKey: dealKeys.paypalActivity(dealId) }),
       queryClient.invalidateQueries({ queryKey: dealKeys.all }),
     ]);
   };
@@ -151,6 +178,26 @@ export function useVerify(dealId: string) {
   const invalidate = useDealInvalidator(dealId);
   return useMutation({
     mutationFn: () => api.verify(dealId),
+    onSuccess: invalidate,
+  });
+}
+
+export function useSubmitMilestoneDeliverable(dealId: string, milestoneId: string) {
+  const invalidate = useDealInvalidator(dealId);
+  return useMutation({
+    mutationFn: (input: {
+      type: DeliverableType;
+      content_ref: string;
+      note?: string | null;
+    }) => api.submitMilestoneDeliverable(dealId, milestoneId, input),
+    onSuccess: invalidate,
+  });
+}
+
+export function useVerifyMilestone(dealId: string, milestoneId: string) {
+  const invalidate = useDealInvalidator(dealId);
+  return useMutation({
+    mutationFn: () => api.verifyMilestone(dealId, milestoneId),
     onSuccess: invalidate,
   });
 }

@@ -3,7 +3,6 @@ import { render as rtlRender, type RenderResult } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 
 import en from "@/messages/en.json";
-import ar from "@/messages/ar.json";
 
 /**
  * Render with the providers a component actually needs.
@@ -14,7 +13,7 @@ import ar from "@/messages/ar.json";
  */
 export function render(
   ui: React.ReactNode,
-  { locale = "en" }: { locale?: "en" | "ar" } = {},
+  { locale = "en" }: { locale?: "en" } = {},
 ): RenderResult {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -22,7 +21,7 @@ export function render(
 
   return rtlRender(
     <QueryClientProvider client={queryClient}>
-      <NextIntlClientProvider locale={locale} messages={locale === "ar" ? ar : en}>
+      <NextIntlClientProvider locale={locale} messages={en}>
         {ui}
       </NextIntlClientProvider>
     </QueryClientProvider>,

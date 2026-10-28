@@ -3,6 +3,8 @@
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 
+import verifyingAnim from "@/animations/verifying.json";
+import { LottieAnimation } from "@/components/ui/lottie";
 import { Spinner } from "@/components/ui/spinner";
 import type { VerificationReport as Report } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -93,6 +95,30 @@ export function VerificationReport({ report, isRunning }: VerificationReportProp
 
       <ConfidenceMeter confidence={report.confidence} />
 
+      {report.verified_criteria.length > 0 || report.unmet_or_missing_criteria.length > 0 ? (
+        <div className="space-y-2">
+          <h3 className="text-xs font-medium uppercase tracking-wide text-ink-faint">
+            {t("verification.auditSummary")}
+          </h3>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {report.verified_criteria.length > 0 ? (
+              <AuditList
+                tone="met"
+                heading={t("verification.verifiedCriteria")}
+                items={report.verified_criteria}
+              />
+            ) : null}
+            {report.unmet_or_missing_criteria.length > 0 ? (
+              <AuditList
+                tone="unmet"
+                heading={t("verification.unmetCriteria")}
+                items={report.unmet_or_missing_criteria}
+              />
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
       {report.per_criterion.length > 0 ? (
         <div className="space-y-2">
           <h3 className="text-xs font-medium uppercase tracking-wide text-ink-faint">
@@ -155,22 +181,62 @@ export function VerificationReport({ report, isRunning }: VerificationReportProp
   );
 }
 
+/** One side of the audit summary: the met, or the unmet, conditions. */
+function AuditList({
+  tone,
+  heading,
+  items,
+}: {
+  tone: "met" | "unmet";
+  heading: string;
+  items: string[];
+}) {
+  const met = tone === "met";
+  return (
+    <div
+      className={cn(
+        "rounded-lg border p-3",
+        met
+          ? "border-status-paid/20 bg-status-paid-soft/40"
+          : "border-status-attention/20 bg-status-attention-soft/40",
+      )}
+    >
+      <p
+        className={cn(
+          "text-xs font-semibold uppercase tracking-wide",
+          met ? "text-status-paid" : "text-status-attention",
+        )}
+      >
+        {heading} · {items.length}
+      </p>
+      <ul className="mt-2 space-y-1.5">
+        {items.map((item, index) => (
+          <li key={index} className="flex gap-2 text-sm text-ink">
+            <span
+              aria-hidden
+              className={cn(met ? "text-status-paid" : "text-status-attention")}
+            >
+              {met ? "✓" : "✕"}
+            </span>
+            <span className="min-w-0 flex-1">{item}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 /** The VERIFYING state: visible progress, not a frozen screen. */
 export function VerificationRunning() {
   const t = useTranslations();
   return (
-    <div className="flex flex-col items-center gap-3 rounded-lg border border-status-progress/20 bg-status-progress-soft px-4 py-8 text-center">
-      <motion.span
-        aria-hidden
-        animate={{ opacity: [0.4, 1, 0.4] }}
-        transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
-        className="size-3 rounded-full bg-status-progress"
+    <div className="flex flex-col items-center gap-2 rounded-lg border border-status-progress/20 bg-status-progress-soft px-4 py-8 text-center">
+      <LottieAnimation
+        animationData={verifyingAnim}
+        className="h-12 w-24"
+        ariaLabel={t("verification.running")}
       />
-      <div>
-        <p className="text-sm font-semibold text-ink">{t("verification.running")}</p>
-        <p className="mt-1 text-sm text-ink-muted">{t("verification.runningDetail")}</p>
-      </div>
-      <Spinner className="text-status-progress" label={t("verification.running")} />
+      <p className="text-sm font-semibold text-ink">{t("verification.running")}</p>
     </div>
   );
 }

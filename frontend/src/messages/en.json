@@ -8,7 +8,12 @@
     "deals": "Deals",
     "signOut": "Sign out",
     "language": "Language",
-    "reviewQueue": "Review queue"
+    "reviewQueue": "Review queue",
+    "home": "Home",
+    "explore": "Explore",
+    "shop": "Shop",
+    "wallet": "Wallet",
+    "account": "Account"
   },
   "states": {
     "DRAFT": "Draft",
@@ -84,11 +89,28 @@
     "submit": "Draft the checklist",
     "submitting": "The AI is drafting the checklist…",
     "failed": "Could not create the deal.",
-    "aiUnavailable": "The AI could not draft a checklist right now. Nothing was created — try again."
+    "aiUnavailable": "The AI could not draft a checklist right now. Nothing was created — try again.",
+    "structure": "Payment structure",
+    "modeSingle": "Single payment",
+    "modeSingleHint": "One amount, released when the work passes.",
+    "modeMilestones": "Milestones",
+    "modeMilestonesHint": "Split into stages, each paid on its own.",
+    "milestones": "Milestones",
+    "milestonesHint": "The deal is funded once for the total. Each milestone gets its own AI checklist and is delivered, verified and released on its own.",
+    "milestonesMin": "Add at least two milestones.",
+    "milestone": "Milestone",
+    "milestoneTitle": "Title",
+    "milestoneTitlePlaceholder": "Logo design",
+    "milestoneAmount": "Amount",
+    "milestoneDesc": "What is delivered in this milestone?",
+    "milestoneDescPlaceholder": "A vector logo with a transparent background.",
+    "addMilestone": "Add milestone",
+    "removeMilestone": "Remove",
+    "total": "Total"
   },
   "criteria": {
     "title": "Acceptance checklist",
-    "subtitle": "Drafted by AI from the description. Both of you confirm it before the deal is funded.",
+    "subtitle": "Drafted by AI. Both parties confirm before funding.",
     "confirmedByYou": "You confirmed this checklist",
     "waitingForOther": "Waiting for the other party to confirm",
     "confirm": "Confirm the checklist",
@@ -101,7 +123,7 @@
   },
   "funding": {
     "title": "Fund the escrow",
-    "subtitle": "Your payment is captured into the platform account and held until the work is verified.",
+    "subtitle": "Captured into escrow and held until the work is verified.",
     "payWithPayPal": "Pay with PayPal",
     "preparing": "Preparing checkout…",
     "capturing": "Confirming your payment…",
@@ -142,14 +164,17 @@
     },
     "confidence": "Confidence",
     "reasoning": "Reasoning",
+    "auditSummary": "Audit summary",
+    "verifiedCriteria": "Conditions met",
+    "unmetCriteria": "Conditions unmet or missing",
     "perCriterion": "Per criterion",
     "pass": "Met",
     "fail": "Not met",
     "decidedByAi": "Decided by AI",
     "decidedByHuman": "Decided by a human reviewer",
     "running": "The AI is checking the work",
-    "runningDetail": "This takes a few seconds. The report appears here when it is done.",
-    "advisory": "This verdict is produced by an AI verifier and is advisory. Either party can contest it, and a human reviewer resolves any dispute.",
+    "runningDetail": "The AI is checking the work. The report appears here.",
+    "advisory": "This verdict is advisory. Either party can contest it; a human resolves disputes.",
     "autoReleased": "Checklist met with high confidence — the funds were released automatically.",
     "disputed": "This deal went to a human reviewer rather than paying out.",
     "none": "This deal has not been verified yet.",
@@ -168,7 +193,7 @@
     "recommendation": "AI recommendation",
     "recommendationLoading": "Asking the mediator…",
     "recommendationFailed": "Could not get a recommendation. You can still decide.",
-    "advisory": "This is an AI recommendation for the reviewer. The reviewer makes the final decision and only that decision moves money.",
+    "advisory": "An AI recommendation for the reviewer. Only the reviewer's decision moves money.",
     "suggestedSplit": "Suggested share for the seller",
     "decision": "Your decision",
     "actions": {
@@ -273,5 +298,229 @@
     "amount": "Amount",
     "state": "State",
     "updated": "Updated"
+  },
+  "wallet": {
+    "title": "Wallet",
+    "subtitle": "What's moving across your deals — all in the PayPal sandbox.",
+    "held": "Held in escrow",
+    "heldHint": "Captured and waiting on verification.",
+    "released": "Released",
+    "releasedHint": "Paid out on completed deals.",
+    "refunded": "Refunded",
+    "refundedHint": "Returned to the buyer.",
+    "pending": "Pending",
+    "pendingHint": "Drafts not yet funded.",
+    "breakdown": "By state",
+    "empty": "No deals yet, so there's nothing to show here.",
+    "emptyCta": "Go to your deals",
+    "loadFailed": "Could not load your wallet.",
+    "retry": "Try again",
+    "kpiTitle": "Key figures",
+    "kpiTotal": "Total deals",
+    "kpiActive": "Active",
+    "kpiCompleted": "Completed",
+    "kpiVolume": "Total volume",
+    "kpiAvg": "Avg deal",
+    "kpiSuccess": "Release rate"
+  },
+  "explore": {
+    "title": "How Waseet works",
+    "subtitle": "AI verifies the work; a fixed policy — not the AI — moves the money.",
+    "stepsTitle": "The lifecycle",
+    "steps": {
+      "create": {
+        "title": "Create & agree",
+        "body": "A buyer describes the work. The AI drafts an acceptance checklist, and both parties confirm it before any money moves."
+      },
+      "fund": {
+        "title": "Fund the escrow",
+        "body": "The buyer pays through PayPal. The money is captured into the platform account and held — it is not sent to the seller."
+      },
+      "deliver": {
+        "title": "Deliver & verify",
+        "body": "The seller submits the work. The AI fetches it and checks it against the confirmed checklist."
+      },
+      "settle": {
+        "title": "Release or dispute",
+        "body": "A confident pass auto-releases to the seller. Anything else goes to a human reviewer with the money still held."
+      }
+    },
+    "safeTitle": "What keeps it safe",
+    "safe": {
+      "decide": {
+        "title": "Decide, don't disburse",
+        "body": "The agents read the deal and judge the work. They can never move money — a deterministic policy does that."
+      },
+      "gate": {
+        "title": "Confidence gate",
+        "body": "Auto-release only on a clear pass at or above the confidence threshold, with no failed criterion and no buyer contest."
+      },
+      "failsafe": {
+        "title": "Fail safe, not open",
+        "body": "A fail, low confidence, an unreadable response or a contest all route to a dispute, with the funds held."
+      },
+      "bounded": {
+        "title": "Bounded payouts",
+        "body": "Every payout is capped at the deal amount and pinned to the named seller, whatever the deliverable claims."
+      }
+    },
+    "cta": "View your deals"
+  },
+  "account": {
+    "title": "Account",
+    "roleLabel": "Role",
+    "roles": {
+      "buyer": "Buyer",
+      "seller": "Seller",
+      "reviewer": "Reviewer"
+    },
+    "language": "Language",
+    "signOut": "Sign out",
+    "sandbox": "You're in the PayPal sandbox. No real money moves."
+  },
+  "activity": {
+    "title": "PayPal activity",
+    "subtitle": "The real money trail, read live from PayPal.",
+    "refresh": "Refresh",
+    "unavailable": "Unavailable",
+    "footnote": "Read live from PayPal's Orders, Payments and Payouts APIs.",
+    "kinds": {
+      "order": "Order",
+      "capture": "Held in escrow",
+      "payout": "Released",
+      "refund": "Refunded"
+    }
+  },
+  "milestoneDeal": {
+    "title": "Milestones",
+    "subtitle": "Funded once; each milestone is delivered, verified and released on its own.",
+    "releasedLabel": "released",
+    "deliver": "Deliver this milestone",
+    "verify": "Verify this milestone",
+    "waitingSeller": "Waiting for the seller to deliver this milestone.",
+    "disputed": "This milestone is disputed; its funds stay held for a reviewer."
+  },
+  "landing": {
+    "signIn": "Sign in",
+    "openApp": "Open app",
+    "badge": "PayPal sandbox — no real money",
+    "title": "Escrow that pays out when the work is actually done.",
+    "subtitle": "An AI verifies the work against an agreed checklist. A confident pass pays out — anything else goes to a human, funds held.",
+    "ctaPrimary": "Get started",
+    "ctaSecondary": "See how it works",
+    "stats": {
+      "ai": {
+        "value": "AI-verified",
+        "label": "Deliverables checked against an agreed checklist"
+      },
+      "policy": {
+        "value": "Policy-gated",
+        "label": "A deterministic rule — not the AI — moves money"
+      },
+      "sandbox": {
+        "value": "Sandbox",
+        "label": "Runs on the PayPal sandbox; no real money moves"
+      }
+    },
+    "finalTitle": "Try the escrow that holds the line.",
+    "finalSubtitle": "Create a deal, fund it, and watch the AI verify and release — all in the sandbox.",
+    "footer": "Waseet — AI-mediated escrow on PayPal. A sandbox prototype; no real money moves."
+  },
+  "onboarding": {
+    "welcomeTitle": "Welcome to Waseet",
+    "welcomeBuyer": "Create a deal — the AI drafts the checklist. Here's the flow:",
+    "welcomeSeller": "A buyer will name you on a deal. Then you deliver, and the AI verifies.",
+    "createFirst": "Create your first deal",
+    "dismiss": "Got it",
+    "steps": {
+      "create": {
+        "title": "Create & agree",
+        "body": "Describe the work. The AI drafts a checklist you both confirm."
+      },
+      "fund": {
+        "title": "Fund the escrow",
+        "body": "The buyer pays through PayPal; the money is held, not sent."
+      },
+      "deliver": {
+        "title": "Deliver & verify",
+        "body": "The seller submits work; the AI checks it against the checklist."
+      },
+      "settle": {
+        "title": "Release or dispute",
+        "body": "A confident pass auto-releases; anything else goes to a reviewer."
+      }
+    }
+  },
+  "certificate": {
+    "title": "Proof of Escrow",
+    "sandbox": "PayPal sandbox",
+    "amount": "Amount",
+    "outcome": "Outcome",
+    "outcomes": {
+      "released": "Released to seller",
+      "refunded": "Refunded to buyer",
+      "split": "Split between parties"
+    },
+    "verdicts": {
+      "pass": "Meets the checklist",
+      "fail": "Does not meet the checklist",
+      "inconclusive": "Could not be determined"
+    },
+    "met": "Conditions met",
+    "unmet": "Conditions unmet or missing",
+    "decidedByAi": "Verified by AI",
+    "decidedByHuman": "Resolved by a human reviewer",
+    "issued": "Issued",
+    "notFoundTitle": "Certificate not found",
+    "notFoundBody": "No settled deal matches this link.",
+    "back": "Go to Waseet",
+    "share": "Share proof",
+    "copy": "Copy link",
+    "copied": "Copied",
+    "open": "Open"
+  },
+  "shop": {
+    "title": "Shop & Escrow",
+    "subtitle": "Search a real product catalog, then start an escrow deal from any item.",
+    "placeholder": "Search products — e.g. merino sweater, headphones",
+    "searchLabel": "Search products",
+    "search": "Search",
+    "empty": "Search the catalog to find a product to buy through escrow.",
+    "noResults": "No products matched that search. Try different words.",
+    "failed": "Could not reach the catalog. Try again.",
+    "startDeal": "Start a deal",
+    "noImage": "No image",
+    "noPrice": "Price on listing",
+    "poweredBy": "Product data powered by Channel3."
+  },
+  "market": {
+    "title": "Marketplace",
+    "subtitle": "Browse services from sellers, then start an escrow deal from one.",
+    "howItWorks": "How it works →",
+    "all": "All",
+    "categories": {
+      "design": "Design",
+      "development": "Development",
+      "writing": "Writing",
+      "marketing": "Marketing",
+      "consulting": "Consulting",
+      "other": "Other"
+    },
+    "startDeal": "Start a deal",
+    "empty": "No offers yet. Check back soon.",
+    "yourOffers": "Your offers",
+    "yourOffersHint": "List a service so buyers can start a deal with you.",
+    "postOffer": "Post an offer",
+    "offerTitle": "Title",
+    "offerTitlePlaceholder": "Logo design",
+    "category": "Category",
+    "offerDesc": "Description",
+    "offerDescPlaceholder": "What you deliver, and what's included.",
+    "price": "Price",
+    "posting": "Publishing…",
+    "publish": "Publish offer",
+    "delist": "Delist",
+    "delisted": "Delisted",
+    "formError": "Add a title and a valid price (e.g. 250.00)."
   }
 }

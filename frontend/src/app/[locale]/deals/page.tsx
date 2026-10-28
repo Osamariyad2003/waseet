@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { MoneyAmount } from "@/components/deals/money-amount";
 import { StatusBadge } from "@/components/deals/status-badge";
+import { GettingStarted } from "@/components/onboarding/getting-started";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/field";
@@ -31,7 +32,7 @@ export default function DealsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
+    <div className="mx-auto w-full max-w-4xl space-y-5">
       <header className="flex flex-wrap items-center gap-3">
         <h1 className="text-xl font-semibold text-ink">{t("deals.title")}</h1>
 
@@ -72,16 +73,14 @@ export default function DealsPage() {
           </Button>
         </Card>
       ) : data.length === 0 ? (
-        <Card>
-          <p className="text-sm font-medium text-ink">
-            {stateFilter ? t("deals.emptyFiltered") : t("deals.empty")}
-          </p>
-          {!stateFilter ? (
-            <p className="mt-1 text-sm text-ink-muted">
-              {user.role === "buyer" ? t("deals.emptyBuyer") : t("deals.emptySeller")}
-            </p>
-          ) : null}
-        </Card>
+        stateFilter ? (
+          <Card>
+            <p className="text-sm font-medium text-ink">{t("deals.emptyFiltered")}</p>
+          </Card>
+        ) : (
+          // First-run onboarding: the whole lifecycle, role-aware, dismissible.
+          <GettingStarted role={user.role} />
+        )
       ) : (
         // A sheet of rows, after the design file's "Latest payments" list: a
         // status glyph in a soft circle on the lead, title + time, then the

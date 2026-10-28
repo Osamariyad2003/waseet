@@ -4,16 +4,16 @@
  */
 import { getRequestConfig } from "next-intl/server";
 
-export const locales = ["en", "ar"] as const;
+export const locales = ["en"] as const;
 export type Locale = (typeof locales)[number];
 export const defaultLocale: Locale = "en";
 
 export function isLocale(value: string): value is Locale {
-  return (locales as readonly string[]).includes(value);
+  return value === "en";
 }
 
-export function direction(locale: Locale): "ltr" | "rtl" {
-  return locale === "ar" ? "rtl" : "ltr";
+export function direction(_locale?: Locale): "ltr" {
+  return "ltr";
 }
 
 export default getRequestConfig(async ({ requestLocale }) => {
