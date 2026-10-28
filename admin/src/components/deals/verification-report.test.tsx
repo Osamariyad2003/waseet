@@ -36,6 +36,7 @@ function report(overrides: Partial<Report> = {}): Report {
     decided_by: "ai",
     recommendation: null,
     decided_at: "2026-10-20T10:00:00Z",
+    intake: null,
     ...overrides,
   };
 }

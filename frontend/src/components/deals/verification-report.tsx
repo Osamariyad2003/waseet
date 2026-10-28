@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import verifyingAnim from "@/animations/verifying.json";
 import { LottieAnimation } from "@/components/ui/lottie";
 import { Spinner } from "@/components/ui/spinner";
-import type { VerificationReport as Report } from "@/lib/types";
+import type { IntakeReport, VerificationReport as Report } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 /**
@@ -84,6 +84,8 @@ export function VerificationReport({ report, isRunning }: VerificationReportProp
 
   return (
     <div className="space-y-5">
+      {report.intake ? <IntakePanel intake={report.intake} /> : null}
+
       <div className={cn("rounded-lg border px-4 py-3", verdictTone)}>
         <p className="text-xs font-medium uppercase tracking-wide opacity-80">
           {t("verification.verdict")}
@@ -222,6 +224,50 @@ function AuditList({
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+/** The pre-flight intake result: the security gate that runs before the
+ * verifier. A PASS is a quiet one-liner; a FLAGGED/REJECT shows the findings. */
+function IntakePanel({ intake }: { intake: IntakeReport }) {
+  const t = useTranslations();
+  const pass = intake.status === "PASS";
+  const reject = intake.status === "REJECT";
+  const tone = pass
+    ? "border-status-paid/20 bg-status-paid-soft/40 text-status-paid"
+    : reject
+      ? "border-status-returned/25 bg-status-returned-soft/50 text-status-returned"
+      : "border-status-attention/20 bg-status-attention-soft/50 text-status-attention";
+
+  return (
+    <div className={cn("rounded-lg border p-3", tone)}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-semibold uppercase tracking-wide">
+          {t("verification.preflight")}
+        </span>
+        <span className="text-xs font-semibold">
+          {t(`verification.preflightStatus.${intake.status}`)}
+          {!pass ? ` · ${t("verification.risk")} ${Math.round(intake.risk_score * 100)}%` : ""}
+        </span>
+      </div>
+      {pass ? (
+        <p className="mt-1 text-sm text-ink-muted">{t("verification.preflightPass")}</p>
+      ) : (
+        <ul className="mt-2 space-y-1.5">
+          {intake.findings.map((f, index) => (
+            <li key={index} className="flex gap-2 text-sm text-ink">
+              <span aria-hidden className="mt-0.5 shrink-0">
+                {f.severity === "HIGH" ? "⛔" : f.severity === "MEDIUM" ? "⚠️" : "•"}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="font-medium">{t(`verification.intakeCategories.${f.category}`)}:</span>{" "}
+                {f.detail}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

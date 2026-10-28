@@ -99,6 +99,8 @@ class VerificationReportResponse(ORMModel):
     decided_by: DecidedBy
     recommendation: str | None
     decided_at: datetime
+    # The pre-flight intake screen's result, when one ran for this report.
+    intake: dict[str, Any] | None = None
 
     # Itemized audit view, derived from per_criterion so there is a single
     # source of truth. The conditions the verifier found met vs. the ones it

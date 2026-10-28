@@ -43,6 +43,9 @@ class VerificationReport(UUIDPrimaryKeyMixin, Base):
     decided_by: Mapped[DecidedBy] = mapped_column(decided_by_enum, nullable=False)
     # Set when a dispute mediator produced a recommendation for a human.
     recommendation: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # The pre-flight intake screen's result (status, risk, findings), stored so
+    # the deal and reviewer views can show what the security gate caught.
+    intake: Mapped[dict[str, Any] | None] = mapped_column(JSONType, nullable=True)
     decided_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

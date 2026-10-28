@@ -97,6 +97,24 @@ export interface CriterionFinding {
   note: string;
 }
 
+export type IntakeStatus = "PASS" | "FLAGGED" | "REJECT";
+
+export interface IntakeFinding {
+  category: "INJECTION" | "OFF_PLATFORM" | "CORRUPT_PAYLOAD" | "NONE";
+  severity: "LOW" | "MEDIUM" | "HIGH";
+  detail: string;
+}
+
+export interface IntakeReport {
+  deal_id: string;
+  status: IntakeStatus;
+  risk_score: number;
+  injection_detected: boolean;
+  off_platform_leakage: boolean;
+  findings: IntakeFinding[];
+  proceed_to_verifier: boolean;
+}
+
 export interface VerificationReport {
   id: string;
   verdict: Verdict;
@@ -109,6 +127,7 @@ export interface VerificationReport {
   decided_by: DecidedBy;
   recommendation: string | null;
   decided_at: string;
+  intake: IntakeReport | null;
 }
 
 export interface VerificationResult {

@@ -277,6 +277,7 @@ class VerificationService:
             reasoning=judgment.reasoning,
             per_criterion=[judgment_item.as_dict() for judgment_item in judgment.per_criterion],
             decided_by=DecidedBy.AI,
+            intake=intake.to_dict(),
         )
         await self._session.flush()
 

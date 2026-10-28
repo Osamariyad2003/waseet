@@ -164,6 +164,20 @@
     },
     "confidence": "Confidence",
     "reasoning": "Reasoning",
+    "preflight": "Security pre-flight",
+    "preflightPass": "Passed — no threats detected in the submission.",
+    "preflightStatus": {
+      "PASS": "Passed",
+      "FLAGGED": "Flagged",
+      "REJECT": "Rejected"
+    },
+    "risk": "risk",
+    "intakeCategories": {
+      "INJECTION": "Prompt injection",
+      "OFF_PLATFORM": "Off-platform payment",
+      "CORRUPT_PAYLOAD": "Corrupt payload",
+      "NONE": "None"
+    },
     "auditSummary": "Audit summary",
     "verifiedCriteria": "Conditions met",
     "unmetCriteria": "Conditions unmet or missing",

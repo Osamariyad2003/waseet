@@ -36,6 +36,7 @@ function report(overrides: Partial<Report> = {}): Report {
     decided_by: "ai",
     recommendation: null,
     decided_at: "2026-10-20T10:00:00Z",
+    intake: null,
     ...overrides,
   };
 }
@@ -73,6 +74,30 @@ describe("VerificationReport", () => {
     );
     expect(screen.getByText("Conditions met · 1")).toBeInTheDocument();
     expect(screen.getByText("Conditions unmet or missing · 1")).toBeInTheDocument();
+  });
+
+  it("shows the pre-flight intake findings when the gate rejected a submission", () => {
+    render(
+      <VerificationReport
+        report={report({
+          verdict: "inconclusive",
+          intake: {
+            deal_id: "d1",
+            status: "REJECT",
+            risk_score: 0.9,
+            injection_detected: true,
+            off_platform_leakage: false,
+            findings: [
+              { category: "INJECTION", severity: "HIGH", detail: "Contains an override directive." },
+            ],
+            proceed_to_verifier: false,
+          },
+        })}
+      />,
+    );
+    expect(screen.getByText("Security pre-flight")).toBeInTheDocument();
+    expect(screen.getByText(/Rejected/)).toBeInTheDocument();
+    expect(screen.getByText(/Contains an override directive/)).toBeInTheDocument();
   });
 
   it("states that an AI verdict is advisory", () => {

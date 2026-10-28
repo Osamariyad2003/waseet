@@ -30,6 +30,7 @@ class VerificationRepository:
         decided_by: DecidedBy,
         recommendation: str | None = None,
         milestone_id: uuid.UUID | None = None,
+        intake: dict[str, Any] | None = None,
     ) -> VerificationReport:
         report = VerificationReport(
             deal_id=deal_id,
@@ -41,6 +42,7 @@ class VerificationRepository:
             per_criterion=per_criterion,
             decided_by=decided_by,
             recommendation=recommendation,
+            intake=intake,
         )
         self._session.add(report)
         return report

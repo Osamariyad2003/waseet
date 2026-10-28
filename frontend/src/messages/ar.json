@@ -164,6 +164,20 @@
     },
     "confidence": "درجة الثقة",
     "reasoning": "التفسير",
+    "preflight": "الفحص الأمني المسبق",
+    "preflightPass": "اجتاز الفحص — لم تُكتشف أي تهديدات في التسليم.",
+    "preflightStatus": {
+      "PASS": "ناجح",
+      "FLAGGED": "مُعلَّم",
+      "REJECT": "مرفوض"
+    },
+    "risk": "الخطورة",
+    "intakeCategories": {
+      "INJECTION": "حقن تعليمات",
+      "OFF_PLATFORM": "دفع خارج المنصة",
+      "CORRUPT_PAYLOAD": "حمولة تالفة",
+      "NONE": "لا شيء"
+    },
     "auditSummary": "ملخص التدقيق",
     "verifiedCriteria": "الشروط المستوفاة",
     "unmetCriteria": "الشروط غير المستوفاة أو الناقصة",
