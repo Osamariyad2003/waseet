@@ -1,7 +1,7 @@
-"""Channel3 product-catalog gateway.
+"""Channel3 product-catalog gateway — official SDK integration.
 
-Calls Channel3's search API (`POST /v1/search`, `x-api-key` auth) and flattens
-each product to a `CatalogProduct`: the best in-stock offer supplies the price,
+Uses the Channel3 Python SDK (v4) for product search. Each product is
+flattened to a `CatalogProduct`: the best in-stock offer supplies the price,
 availability and buy link. A failure is swallowed to an empty result — the
 Shop page must stay usable even when the provider is down.
 """
@@ -10,15 +10,13 @@ from __future__ import annotations
 
 from decimal import Decimal, InvalidOperation
 
-import httpx
 import structlog
+from channel3_sdk import AsyncChannel3
 
 from app.config import Settings
 from app.integrations.catalog.interface import CatalogProduct
 
 logger = structlog.get_logger(__name__)
-
-_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
 
 
 class Channel3CatalogGateway:
@@ -27,56 +25,48 @@ class Channel3CatalogGateway:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
         self._key = settings.channel3_api_key.get_secret_value().strip()
-        self._base_url = settings.channel3_base_url.rstrip("/")
 
     async def search(self, *, query: str, limit: int = 12) -> tuple[CatalogProduct, ...]:
         query = (query or "").strip()
         if not query:
             return ()
         try:
-            async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-                resp = await client.post(
-                    f"{self._base_url}/search",
-                    headers={"x-api-key": self._key, "Content-Type": "application/json"},
-                    json={"query": query, "limit": max(1, min(limit, 40))},
-                )
-                resp.raise_for_status()
-                payload = resp.json()
-        except (httpx.HTTPError, ValueError) as exc:
-            # Never surface a provider outage as a 500 — degrade to no results.
+            client = AsyncChannel3(api_key=self._key)
+            page = await client.products.search(
+                query=query,
+                limit=max(1, min(limit, 30)),
+            )
+            items = page.items
+        except Exception as exc:
             logger.warning("catalog.search_failed", error=str(exc))
             return ()
 
-        # The API may return a bare list or an object wrapping one.
-        items = payload if isinstance(payload, list) else payload.get("products") or payload.get("results") or []
         products = tuple(p for item in items if (p := _to_product(item)) is not None)
         logger.info("catalog.searched", query=query, count=len(products), provider="channel3")
         return products
 
 
 def _to_product(item: object) -> CatalogProduct | None:
-    if not isinstance(item, dict):
+    try:
+        pid = item.id
+        title = item.title
+    except AttributeError:
         return None
-    pid = str(item.get("id") or "").strip()
-    title = str(item.get("title") or "").strip()
     if not pid or not title:
         return None
 
-    brands = item.get("brands") or []
     brand = None
-    if isinstance(brands, list) and brands and isinstance(brands[0], dict):
-        brand = str(brands[0].get("name") or "").strip() or None
+    if item.brands:
+        brand = item.brands[0].name if item.brands[0].name else None
 
     image_url = None
-    images = item.get("images") or []
-    if isinstance(images, list) and images and isinstance(images[0], dict):
-        first = images[0]
-        image_url = (first.get("cleaned_url") or first.get("url")) or None
+    if item.images:
+        first = item.images[0]
+        image_url = getattr(first, "cleaned_url", None) or getattr(first, "url", None)
 
-    price, currency, available, buy_url = _best_offer(item.get("offers") or [])
+    price, currency, available, buy_url = _best_offer(item.offers or [])
 
-    description = item.get("description")
-    description = str(description).strip() if description else None
+    description = getattr(item, "description", None)
 
     return CatalogProduct(
         id=pid,
@@ -91,21 +81,19 @@ def _to_product(item: object) -> CatalogProduct | None:
     )
 
 
-def _best_offer(offers: object) -> tuple[Decimal | None, str, bool, str | None]:
+def _best_offer(offers: list) -> tuple[Decimal | None, str, bool, str | None]:
     """Prefer the cheapest in-stock offer; fall back to the first one."""
-    if not isinstance(offers, list):
+    if not offers:
         return None, "USD", False, None
 
     parsed: list[tuple[Decimal | None, str, bool, str | None]] = []
     for offer in offers:
-        if not isinstance(offer, dict):
-            continue
-        price_obj = offer.get("price") or {}
-        amount = _as_decimal(price_obj.get("price")) if isinstance(price_obj, dict) else None
-        currency = str((price_obj.get("currency") if isinstance(price_obj, dict) else None) or "USD").upper()
-        availability = str((price_obj.get("availability") if isinstance(price_obj, dict) else "") or "")
-        available = availability.lower() == "instock"
-        url = str(offer.get("url") or "").strip() or None
+        price_obj = getattr(offer, "price", None)
+        amount = _as_decimal(price_obj.price) if price_obj else None
+        currency = (price_obj.currency if price_obj else None) or "USD"
+        availability = getattr(offer, "availability", "") or ""
+        available = str(availability).lower() == "instock"
+        url = getattr(offer, "url", None)
         parsed.append((amount, currency, available, url))
 
     if not parsed:
@@ -113,7 +101,6 @@ def _best_offer(offers: object) -> tuple[Decimal | None, str, bool, str | None]:
 
     in_stock = [o for o in parsed if o[2] and o[0] is not None]
     pool = in_stock or parsed
-    # Cheapest priced offer in the pool; unpriced offers sort last.
     return min(pool, key=lambda o: o[0] if o[0] is not None else Decimal("Infinity"))
 
 
