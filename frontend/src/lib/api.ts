@@ -12,6 +12,8 @@ import type {
   ApiErrorBody,
   CatalogProduct,
   Certificate,
+  PriceHistoryData,
+  ProductDetail,
   ClientTokenResponse,
   DealTerms,
   CreateOrderResponse,
@@ -275,6 +277,19 @@ export const api = {
   searchCatalog: (query: string, limit = 12) =>
     request<CatalogProduct[]>(
       `/catalog/search?q=${encodeURIComponent(query)}&limit=${limit}`,
+    ),
+
+  getProduct: (productId: string) =>
+    request<ProductDetail>(`/catalog/products/${encodeURIComponent(productId)}`),
+
+  getSimilarProducts: (productId: string, limit = 6) =>
+    request<CatalogProduct[]>(
+      `/catalog/products/${encodeURIComponent(productId)}/similar?limit=${limit}`,
+    ),
+
+  getPriceHistory: (productId: string, days = 90) =>
+    request<PriceHistoryData>(
+      `/catalog/products/${encodeURIComponent(productId)}/price-history?days=${days}`,
     ),
 
   listOffers: () => request<Offer[]>("/offers"),

@@ -1,15 +1,21 @@
 """Keyless stub catalog.
 
 Stands in for Channel3 when no API key is set, so Shop & Escrow can be
-demonstrated without credentials — exactly like the AI stub. It filters a
-small fixed catalog by a case-insensitive substring match on the query.
+demonstrated without credentials — exactly like the AI stub.
 """
 
 from __future__ import annotations
 
 from decimal import Decimal
 
-from app.integrations.catalog.interface import CatalogProduct
+from app.integrations.catalog.interface import (
+    CatalogProduct,
+    PriceHistory,
+    PricePoint,
+    ProductDetail,
+    ProductImage,
+    ProductOffer,
+)
 
 _CATALOG: tuple[CatalogProduct, ...] = (
     CatalogProduct(
@@ -95,7 +101,54 @@ class StubCatalogGateway:
             or (p.brand and q in p.brand.lower())
             or (p.description and q in p.description.lower())
         )
-        # If nothing matches the query, show the whole catalog rather than an
-        # empty page — the demo should always have something to click.
         results = hits or _CATALOG
         return results[:limit]
+
+    async def get_product(self, *, product_id: str) -> ProductDetail | None:
+        match = next((p for p in _CATALOG if p.id == product_id), None)
+        if not match:
+            return None
+        return ProductDetail(
+            id=match.id,
+            title=match.title,
+            brand=match.brand,
+            description=match.description,
+            images=[ProductImage(url=match.image_url or "", cleaned_url=None, alt_text=match.title)] if match.image_url else [],
+            offers=[ProductOffer(
+                domain="example.com",
+                price=match.price,
+                compare_at_price=None,
+                currency=match.currency,
+                available=match.available,
+                url=match.buy_url,
+            )] if match.price else [],
+            price=match.price,
+            currency=match.currency,
+            available=match.available,
+            category=None,
+            materials=[],
+            key_features=[],
+        )
+
+    async def find_similar(self, *, product_id: str, limit: int = 12) -> tuple[CatalogProduct, ...]:
+        return tuple(p for p in _CATALOG if p.id != product_id)[:limit]
+
+    async def get_price_history(self, *, product_id: str, days: int = 90) -> PriceHistory | None:
+        match = next((p for p in _CATALOG if p.id == product_id), None)
+        if not match or not match.price:
+            return None
+        base = float(match.price)
+        return PriceHistory(
+            product_id=product_id,
+            product_title=match.title,
+            history=[
+                PricePoint(price=base * 1.1, currency=match.currency, timestamp="2026-08-01T00:00:00Z"),
+                PricePoint(price=base * 1.05, currency=match.currency, timestamp="2026-09-01T00:00:00Z"),
+                PricePoint(price=base, currency=match.currency, timestamp="2026-10-01T00:00:00Z"),
+            ],
+            current_price=base,
+            min_price=base,
+            max_price=base * 1.1,
+            mean_price=base * 1.05,
+            current_status="low",
+        )

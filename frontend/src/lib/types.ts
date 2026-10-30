@@ -90,6 +90,53 @@ export interface CatalogProduct {
   buy_url: string | null;
 }
 
+export interface ProductOffer {
+  domain: string;
+  price: string | null;
+  compare_at_price: string | null;
+  currency: string;
+  available: boolean;
+  url: string | null;
+}
+
+export interface ProductImage {
+  url: string;
+  cleaned_url: string | null;
+  alt_text: string | null;
+}
+
+export interface ProductDetail {
+  id: string;
+  title: string;
+  brand: string | null;
+  description: string | null;
+  images: ProductImage[];
+  offers: ProductOffer[];
+  price: string | null;
+  currency: string;
+  available: boolean;
+  category: string | null;
+  materials: string[];
+  key_features: string[];
+}
+
+export interface PricePoint {
+  price: number;
+  currency: string;
+  timestamp: string;
+}
+
+export interface PriceHistoryData {
+  product_id: string;
+  product_title: string | null;
+  history: PricePoint[];
+  current_price: number | null;
+  min_price: number | null;
+  max_price: number | null;
+  mean_price: number | null;
+  current_status: string | null;
+}
+
 export interface CriterionFinding {
   criterion_id: string;
   text: string;

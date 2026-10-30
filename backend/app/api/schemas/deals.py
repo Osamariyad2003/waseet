@@ -237,6 +237,53 @@ class CatalogProductResponse(BaseModel):
     buy_url: str | None = None
 
 
+class ProductOfferResponse(BaseModel):
+    domain: str
+    price: Decimal | None = None
+    compare_at_price: Decimal | None = None
+    currency: str
+    available: bool
+    url: str | None = None
+
+
+class ProductImageResponse(BaseModel):
+    url: str
+    cleaned_url: str | None = None
+    alt_text: str | None = None
+
+
+class ProductDetailResponse(BaseModel):
+    id: str
+    title: str
+    brand: str | None = None
+    description: str | None = None
+    images: list[ProductImageResponse] = []
+    offers: list[ProductOfferResponse] = []
+    price: Decimal | None = None
+    currency: str
+    available: bool
+    category: str | None = None
+    materials: list[str] = []
+    key_features: list[str] = []
+
+
+class PricePointResponse(BaseModel):
+    price: float
+    currency: str
+    timestamp: str
+
+
+class PriceHistoryResponse(BaseModel):
+    product_id: str
+    product_title: str | None = None
+    history: list[PricePointResponse] = []
+    current_price: float | None = None
+    min_price: float | None = None
+    max_price: float | None = None
+    mean_price: float | None = None
+    current_status: str | None = None
+
+
 # --- milestones ------------------------------------------------------------
 
 

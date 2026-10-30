@@ -82,40 +82,52 @@ export default function ShopPage() {
           {products.map((p) => (
             <li key={p.id}>
               <Card className="flex h-full flex-col overflow-hidden p-0">
-                <div className="aspect-[4/3] w-full overflow-hidden bg-surface-muted">
-                  {p.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={p.image_url}
-                      alt=""
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-ink-faint">
-                      {t("noImage")}
-                    </div>
-                  )}
-                </div>
+                <Link href={`/${locale}/shop/${encodeURIComponent(p.id)}`}>
+                  <div className="aspect-[4/3] w-full overflow-hidden bg-surface-muted">
+                    {p.image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={p.image_url}
+                        alt=""
+                        className="h-full w-full object-contain p-2"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-ink-faint">
+                        {t("noImage")}
+                      </div>
+                    )}
+                  </div>
+                </Link>
                 <div className="flex flex-1 flex-col gap-2 p-4">
                   {p.brand ? (
                     <span className="text-xs font-medium uppercase tracking-wide text-ink-faint">
                       {p.brand}
                     </span>
                   ) : null}
-                  <p className="line-clamp-2 font-medium text-ink">{p.title}</p>
+                  <Link href={`/${locale}/shop/${encodeURIComponent(p.id)}`} className="line-clamp-2 font-medium text-ink hover:text-accent">
+                    {p.title}
+                  </Link>
                   <div className="mt-auto flex items-center justify-between gap-2 pt-2">
                     {p.price ? (
                       <MoneyAmount amount={p.price} currency={p.currency} className="font-semibold" />
                     ) : (
                       <span className="text-sm text-ink-faint">{t("noPrice")}</span>
                     )}
-                    <Link
-                      href={dealHref(locale, p)}
-                      className="inline-flex h-9 items-center rounded-lg bg-accent px-3 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
-                    >
-                      {t("startDeal")}
-                    </Link>
+                    <div className="flex gap-1.5">
+                      <Link
+                        href={`/${locale}/shop/${encodeURIComponent(p.id)}`}
+                        className="inline-flex h-9 items-center rounded-lg border border-border-subtle px-3 text-sm font-medium text-ink-muted transition-colors hover:bg-surface-muted"
+                      >
+                        {t("viewDetails")}
+                      </Link>
+                      <Link
+                        href={dealHref(locale, p)}
+                        className="inline-flex h-9 items-center rounded-lg bg-accent px-3 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+                      >
+                        {t("startDeal")}
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </Card>
