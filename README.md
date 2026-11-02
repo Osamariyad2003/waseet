@@ -188,19 +188,81 @@ confidence, and the PayPal reference ids.
 
 ### Visual walkthrough
 
-| 1. Create Deal & Terms | 2. Fund Escrow on PayPal |
+#### Landing & Onboarding
+
+| Landing Hero | Features & Lifecycle |
 |:---:|:---:|
-| <img src="screenshots/25-new-deal-form-milestones.png" width="450" /> | <img src="screenshots/26-deal-funded-escrow-summary.png" width="450" /> |
+| <img src="screenshots/11-landing-hero.jpg" width="450" /> | <img src="screenshots/12-landing-features-lifecycle.jpg" width="450" /> |
 
-| 3. Agreed Terms & Fingerprint | 4. AI Verification in Action |
+| Sign In | Sign Up (not shown — same style) |
 |:---:|:---:|
-| <img src="screenshots/27-agreed-terms-checklist-fingerprint.png" width="450" /> | <img src="screenshots/28-deliverable-ai-verifying.png" width="450" /> |
+| <img src="screenshots/13-login-page.jpg" width="450" /> | <img src="screenshots/14-home-welcome-banner.jpg" width="450" /> |
 
-| 5. Immutable Audit Trail & PayPal IDs |
-|:---:|
-| <img src="screenshots/29-deal-history-paypal-audit.png" width="900" /> |
+#### Buyer & Seller Dashboards
 
-*See [`screenshots/README.md`](screenshots/README.md) for the complete screenshot catalog.*
+| Buyer — My Deals | Seller — Home |
+|:---:|:---:|
+| <img src="screenshots/01-home-deals.jpg" width="450" /> | <img src="screenshots/15-seller-home.jpg" width="450" /> |
+
+#### Marketplace & Shop
+
+| Explore Marketplace | Marketplace Services |
+|:---:|:---:|
+| <img src="screenshots/02-explore-marketplace.jpg" width="450" /> | <img src="screenshots/16-marketplace-services.jpg" width="450" /> |
+
+| Shop & Product Search | Product Detail |
+|:---:|:---:|
+| <img src="screenshots/03-shop-search.jpg" width="450" /> | <img src="screenshots/04-product-detail-top.jpg" width="450" /> |
+
+| Product Offers & Similar | |
+|:---:|:---:|
+| <img src="screenshots/05-product-offers-similar.jpg" width="450" /> | |
+
+#### Wallet & Account
+
+| Wallet | Account & Verification |
+|:---:|:---:|
+| <img src="screenshots/06-wallet.jpg" width="450" /> | <img src="screenshots/07-account.jpg" width="450" /> |
+
+#### Deal Creation & Lifecycle
+
+| New Deal Form | Deal Form with Milestones |
+|:---:|:---:|
+| <img src="screenshots/08-new-deal-form.jpg" width="450" /> | <img src="screenshots/25-new-deal-form-milestones.png" width="450" /> |
+
+| Funded Escrow Summary | Agreed Terms & SHA-256 Fingerprint |
+|:---:|:---:|
+| <img src="screenshots/26-deal-funded-escrow-summary.png" width="450" /> | <img src="screenshots/27-agreed-terms-checklist-fingerprint.png" width="450" /> |
+
+| AI Verification in Action | Deal History & PayPal Audit Trail |
+|:---:|:---:|
+| <img src="screenshots/28-deliverable-ai-verifying.png" width="450" /> | <img src="screenshots/29-deal-history-paypal-audit.png" width="450" /> |
+
+#### Admin Panel
+
+| Admin Login | Admin Dashboard |
+|:---:|:---:|
+| <img src="screenshots/09-admin-login.jpg" width="450" /> | <img src="screenshots/10-admin-dashboard.jpg" width="450" /> |
+
+| Deal Detail | Checklist & Verdict |
+|:---:|:---:|
+| <img src="screenshots/17-admin-deal-detail-top.jpg" width="450" /> | <img src="screenshots/18-admin-deal-checklist-verdict.jpg" width="450" /> |
+
+| AI Verification Report | Per-Criterion Reasoning |
+|:---:|:---:|
+| <img src="screenshots/19-admin-verification-report.jpg" width="450" /> | <img src="screenshots/20-admin-per-criterion-reasoning.jpg" width="450" /> |
+
+| Dispute Resolution | |
+|:---:|:---:|
+| <img src="screenshots/21-admin-dispute-resolution.jpg" width="450" /> | |
+
+#### Mobile Responsive
+
+| Mobile Marketplace | Mobile Shop | Mobile Home |
+|:---:|:---:|:---:|
+| <img src="screenshots/22-mobile-marketplace.jpg" width="280" /> | <img src="screenshots/23-mobile-shop.jpg" width="280" /> | <img src="screenshots/24-mobile-home.jpg" width="280" /> |
+
+*See [`screenshots/README.md`](screenshots/README.md) for the complete screenshot catalog with descriptions.*
 
 ---
 
