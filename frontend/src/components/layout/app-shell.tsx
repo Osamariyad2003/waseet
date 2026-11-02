@@ -20,7 +20,11 @@ export function AppShell({
   const router = useRouter();
   const { user, signOut } = useSession();
 
-  const isLoginPage = pathname === `/${locale}/login` || pathname.endsWith("/login");
+  const isAuthPage =
+    pathname === `/${locale}/login` ||
+    pathname.endsWith("/login") ||
+    pathname === `/${locale}/signup` ||
+    pathname.endsWith("/signup");
 
   // The public landing page owns its whole layout (its own top bar, no
   // sidebar), so the shell just hands it the canvas.
@@ -43,10 +47,9 @@ export function AppShell({
     );
   }
 
-  // Login page layout: clean standalone card with minimal top header
-  if (isLoginPage) {
+  if (isAuthPage) {
     return (
-      <div className="min-h-dvh flex flex-col bg-canvas" suppressHydrationWarning>
+      <div className="min-h-dvh flex flex-col bg-gradient-to-br from-accent-soft/40 via-canvas to-canvas" suppressHydrationWarning>
         <header className="bg-accent text-white px-4 py-3 sm:px-6">
           <div className="mx-auto flex w-full max-w-3xl items-center justify-between">
             <Link

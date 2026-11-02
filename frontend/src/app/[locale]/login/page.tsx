@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
@@ -28,7 +29,6 @@ export default function LoginPage() {
   const { signIn, signOut, user } = useSession();
   const [failure, setFailure] = useState<string | null>(null);
 
-  // Already signed in: do not make them sign in twice.
   useEffect(() => {
     if (user) router.replace(`/${locale}/deals`);
   }, [user, router, locale]);
@@ -36,6 +36,7 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -46,8 +47,6 @@ export default function LoginPage() {
     setFailure(null);
     try {
       const signedIn = await signIn(values.email, values.password);
-      // The escrow app is for buyers and sellers; a reviewer is turned away
-      // and pointed at the admin app.
       if (signedIn.role === "reviewer") {
         signOut();
         setFailure(t("login.reviewerElsewhere"));
@@ -63,9 +62,21 @@ export default function LoginPage() {
     }
   };
 
+  const fillDemoBuyer = () => {
+    setValue("email", "buyer@waseet.example.com");
+    setValue("password", "demo-password-123");
+  };
+
+  const fillDemoSeller = () => {
+    setValue("email", "seller@waseet.example.com");
+    setValue("password", "demo-password-123");
+  };
+
   return (
     <div className="mx-auto max-w-sm">
       <Card>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.svg" alt="Waseet" className="mx-auto mb-4 h-14 w-auto" />
         <CardTitle>{t("login.title")}</CardTitle>
         <CardSubtitle>{t("login.subtitle")}</CardSubtitle>
 
@@ -117,7 +128,34 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <p className="mt-4 text-xs text-ink-faint">{t("login.demoHint")}</p>
+        <div className="mt-5 pt-4 border-t border-border-subtle/60 text-center text-sm text-ink-muted">
+          <span>{t("login.noAccount")} </span>
+          <Link
+            href={`/${locale}/signup`}
+            className="font-semibold text-accent hover:underline hover:text-accent/90"
+          >
+            {t("login.signUp")}
+          </Link>
+        </div>
+
+        <div className="mt-4 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={fillDemoBuyer}
+            className="flex-1 rounded-lg border border-border-subtle px-3 py-2 text-xs font-medium text-ink-muted transition-colors hover:border-accent hover:text-accent"
+          >
+            {t("login.demoBuyer")}
+          </button>
+          <button
+            type="button"
+            onClick={fillDemoSeller}
+            className="flex-1 rounded-lg border border-border-subtle px-3 py-2 text-xs font-medium text-ink-muted transition-colors hover:border-accent hover:text-accent"
+          >
+            {t("login.demoSeller")}
+          </button>
+        </div>
+
+        <p className="mt-3 text-xs text-center text-ink-faint">{t("login.demoHint")}</p>
       </Card>
     </div>
   );

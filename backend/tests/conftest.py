@@ -36,7 +36,7 @@ os.environ.setdefault("ANTHROPIC_API_KEY", "test-ai-key")
 os.environ.setdefault("ENABLE_WEBHOOK_SIMULATOR", "true")
 
 ADMIN_URL = os.environ.get(
-    "TEST_ADMIN_DATABASE_URL", "postgresql+asyncpg://waseet:waseet@localhost:5434/waseet"
+    "TEST_ADMIN_DATABASE_URL", "postgresql+asyncpg://waseet:waseet@localhost:5432/waseet"
 )
 TEST_DB_NAME = "waseet_test"
 TEST_DATABASE_URL = ADMIN_URL.rsplit("/", 1)[0] + f"/{TEST_DB_NAME}"

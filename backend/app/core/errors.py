@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 
 from app.domain.errors import (
     AIError,
+    ConflictError,
     CriteriaNotConfirmed,
     DealNotFound,
     DomainError,
@@ -36,6 +37,7 @@ STATUS_BY_ERROR: dict[type[DomainError], int] = {
     InvalidTransition: status.HTTP_409_CONFLICT,
     TransitionGuardFailed: status.HTTP_409_CONFLICT,
     CriteriaNotConfirmed: status.HTTP_409_CONFLICT,
+    ConflictError: status.HTTP_409_CONFLICT,
     SettlementError: status.HTTP_502_BAD_GATEWAY,
     PayPalError: status.HTTP_502_BAD_GATEWAY,
     AIError: status.HTTP_503_SERVICE_UNAVAILABLE,

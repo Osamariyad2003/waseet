@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
+import { useState } from "react";
 
 import { CriteriaChecklist } from "@/components/deals/criteria-checklist";
 import { DealTimeline } from "@/components/deals/deal-timeline";
@@ -11,7 +12,6 @@ import { DecisionPanel } from "@/components/deals/decision-panel";
 import { MoneyAmount } from "@/components/deals/money-amount";
 import { StatusBadge } from "@/components/deals/status-badge";
 import { VerificationReport } from "@/components/deals/verification-report";
-import { Button } from "@/components/ui/button";
 import { Card, CardSubtitle, CardTitle } from "@/components/ui/card";
 import {
   useDeal,
@@ -26,9 +26,9 @@ import { TERMINAL_STATES, type DealWithTimeline, type Milestone } from "@/lib/ty
 import { cn } from "@/lib/utils";
 
 /**
- * The reviewer's read-only view of a deal, plus the decision panel when it
- * is disputed. No buyer/seller actions live here — this is the admin
- * platform.
+ * Reviewer Operations & Dispute Resolution Workspace:
+ * Professional two-column command center with live AI recommendation,
+ * PayPal sandbox references, criteria verification, and decision controls.
  */
 export default function AdminDealPage() {
   const t = useTranslations();
@@ -40,7 +40,7 @@ export default function AdminDealPage() {
   const { data: deal, isPending, isError, error, refetch } = useDeal(dealId);
 
   if (isLoading || !user || isPending) {
-    return <div className="mx-auto h-96 max-w-3xl animate-pulse rounded-card bg-surface" />;
+    return <div className="mx-auto h-96 max-w-7xl animate-pulse rounded-card bg-surface" />;
   }
 
   if (isError) {
@@ -51,55 +51,101 @@ export default function AdminDealPage() {
         <CardSubtitle>{notFound ? t("deal.notFound") : t("deal.loadFailed")}</CardSubtitle>
         <Link
           href={`/${locale}/dashboard`}
-          className="inline-flex h-11 items-center text-sm text-ink-muted hover:text-ink"
+          className="inline-flex h-11 items-center text-sm font-semibold text-accent hover:underline"
         >
-          {t("common.back")}
+          ← {t("common.back")}
         </Link>
       </Card>
     );
   }
 
+  const isDisputed = deal.state === "DISPUTED";
+
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
-      <Link href={`/${locale}/dashboard`} className="text-sm text-ink-muted hover:text-ink">
-        ← {t("common.back")}
-      </Link>
+    <div className="mx-auto max-w-7xl space-y-6">
+      {/* Navigation Breadcrumb */}
+      <div className="flex items-center justify-between">
+        <Link
+          href={`/${locale}/dashboard`}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-muted hover:text-accent transition-colors"
+        >
+          <span>← Back to Operations Dashboard</span>
+        </Link>
+        <span className="font-mono text-xs text-ink-faint">Deal ID: {deal.id}</span>
+      </div>
 
+      {/* Outcome Confirmation (if terminal) */}
       <OutcomeConfirmation deal={deal} />
-      <DealHero deal={deal} />
 
-      <Card>
-        <CardTitle>{t("criteria.title")}</CardTitle>
-        <div className="mt-4">
-          <CriteriaChecklist criteria={deal.criteria} viewerRole="reviewer" canConfirm={false} />
+      {/* 2-Column Split Layout */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        {/* Left Column: Deal Details, Deliverable, Verification (8 cols) */}
+        <div className="space-y-6 lg:col-span-7 xl:col-span-8">
+          <DealHero deal={deal} />
+
+          {/* Acceptance Checklist */}
+          <Card>
+            <div className="flex items-center justify-between pb-3 border-b border-border-subtle/50">
+              <CardTitle>{t("criteria.title")}</CardTitle>
+              <span className="text-xs text-ink-faint font-medium">
+                {deal.criteria.length} condition{deal.criteria.length > 1 ? "s" : ""}
+              </span>
+            </div>
+            <div className="mt-4">
+              <CriteriaChecklist criteria={deal.criteria} viewerRole="reviewer" canConfirm={false} />
+            </div>
+          </Card>
+
+          {/* Deliverable Submission */}
+          {deal.deliverables.length > 0 ? <DeliverableCard deal={deal} /> : null}
+
+          {/* AI Verification Report */}
+          {deal.verification_reports.length > 0 ? (
+            <Card>
+              <div className="flex items-center justify-between pb-3 border-b border-border-subtle/50">
+                <CardTitle>{t("verification.title")}</CardTitle>
+                <span className="text-xs font-medium text-accent bg-accent-soft px-2 py-0.5 rounded-full">
+                  AI Evaluated
+                </span>
+              </div>
+              <div className="mt-4">
+                <VerificationReport
+                  report={deal.verification_reports[deal.verification_reports.length - 1]!}
+                />
+              </div>
+            </Card>
+          ) : null}
+
+          {/* Milestones Review */}
+          {deal.milestones.length > 0 ? (
+            <MilestonesReviewCard deal={deal} onResolved={() => void refetch()} />
+          ) : null}
         </div>
-      </Card>
 
-      {deal.deliverables.length > 0 ? <DeliverableCard deal={deal} /> : null}
+        {/* Right Column: Sticky Dispute Action Panel & PayPal Ledger (5 cols) */}
+        <div className="space-y-6 lg:col-span-5 xl:col-span-4">
+          {/* Dispute Decision Panel (Prominent when disputed) */}
+          {isDisputed ? (
+            <DisputeCard deal={deal} onResolved={() => void refetch()} />
+          ) : null}
 
-      {deal.verification_reports.length > 0 ? (
-        <Card>
-          <CardTitle>{t("verification.title")}</CardTitle>
-          <div className="mt-5">
-            <VerificationReport
-              report={deal.verification_reports[deal.verification_reports.length - 1]!}
-            />
-          </div>
-        </Card>
-      ) : null}
+          {/* PayPal Sandbox Ledger References Card */}
+          <PayPalLedgerCard deal={deal} />
 
-      {deal.state === "DISPUTED" ? <DisputeCard deal={deal} onResolved={() => void refetch()} /> : null}
-
-      {deal.milestones.length > 0 ? (
-        <MilestonesReviewCard deal={deal} onResolved={() => void refetch()} />
-      ) : null}
-
-      <Card>
-        <CardTitle>{t("timeline.title")}</CardTitle>
-        <div className="mt-5">
-          <DealTimeline entries={deal.timeline} />
+          {/* Immutable Audit Trail & History */}
+          <Card>
+            <div className="flex items-center justify-between pb-3 border-b border-border-subtle/50">
+              <CardTitle>{t("timeline.title")}</CardTitle>
+              <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/50">
+                Append-only
+              </span>
+            </div>
+            <div className="mt-4">
+              <DealTimeline entries={deal.timeline} />
+            </div>
+          </Card>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }
@@ -117,48 +163,72 @@ function DealHero({ deal }: { deal: DealWithTimeline }) {
           : t("deal.amountHeld");
 
   return (
-    <Card className={cn("border", style.surface)}>
+    <Card className={cn("border border-border-subtle/80 bg-surface shadow-sheet", style.surface)}>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-lg font-semibold text-ink">{deal.title}</h1>
-          <p className="mt-1 max-w-prose text-sm leading-relaxed text-ink-muted">
+          <h1 className="text-xl font-bold tracking-tight text-ink">{deal.title}</h1>
+          <p className="mt-1.5 max-w-prose text-sm leading-relaxed text-ink-muted">
             {deal.description}
           </p>
         </div>
         <StatusBadge state={deal.state} size="lg" withMeaning />
       </div>
 
-      <div className="mt-6">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={deal.state}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <MoneyAmount amount={deal.amount} currency={deal.currency} size="hero" label={label} />
-          </motion.div>
-        </AnimatePresence>
+      <div className="mt-5 pt-4 border-t border-border-subtle/60 flex items-baseline justify-between">
+        <div>
+          <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted block">
+            {label}
+          </span>
+          <div className="mt-1">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={deal.state}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25 }}
+              >
+                <MoneyAmount amount={deal.amount} currency={deal.currency} size="hero" />
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </div>
+
+        <div className="text-end">
+          <span className="text-[11px] font-medium text-ink-faint block uppercase">Currency</span>
+          <span className="font-semibold text-sm text-ink">{deal.currency}</span>
+        </div>
       </div>
 
-      <dl className="mt-5 divide-y divide-border-subtle border-t border-border-subtle text-sm">
-        <div className="flex items-baseline justify-between gap-4 py-2.5">
-          <dt className="text-xs font-medium uppercase tracking-wide text-ink-faint">
-            {t("deal.buyer")}
-          </dt>
-          <dd className="truncate text-end text-ink">
-            {deal.buyer.full_name || deal.buyer.email}
-          </dd>
+      {/* Counterparties Summary Cards */}
+      <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 border-t border-border-subtle/60 text-xs">
+        {/* Buyer Card */}
+        <div className="p-3 rounded-xl bg-surface-muted/60 border border-border-subtle/50">
+          <div className="flex items-center gap-1.5 font-bold text-ink mb-1">
+            <span className="size-2 rounded-full bg-blue-500" />
+            <span>Buyer</span>
+          </div>
+          <div className="font-semibold text-ink truncate">
+            {deal.buyer.full_name || "Unnamed Buyer"}
+          </div>
+          <div className="text-ink-muted truncate font-mono text-[11px]">
+            {deal.buyer.email}
+          </div>
         </div>
-        <div className="flex items-baseline justify-between gap-4 py-2.5">
-          <dt className="text-xs font-medium uppercase tracking-wide text-ink-faint">
-            {t("deal.seller")}
-          </dt>
-          <dd className="truncate text-end text-ink">
-            {deal.seller.full_name || deal.seller.email}
-          </dd>
+
+        {/* Seller Card */}
+        <div className="p-3 rounded-xl bg-surface-muted/60 border border-border-subtle/50">
+          <div className="flex items-center gap-1.5 font-bold text-ink mb-1">
+            <span className="size-2 rounded-full bg-emerald-500" />
+            <span>Seller</span>
+          </div>
+          <div className="font-semibold text-ink truncate">
+            {deal.seller.full_name || "Unnamed Seller"}
+          </div>
+          <div className="text-ink-muted truncate font-mono text-[11px]">
+            {deal.seller.email}
+          </div>
         </div>
-      </dl>
+      </div>
     </Card>
   );
 }
@@ -172,27 +242,27 @@ function OutcomeConfirmation({ deal }: { deal: DealWithTimeline }) {
   return (
     <section
       aria-label={t(`confirmation.${deal.state}.title`)}
-      className="overflow-hidden rounded-card shadow-sheet"
+      className="overflow-hidden rounded-card shadow-sheet border border-border-subtle/60"
     >
-      <div className="bg-accent px-6 py-8 text-center text-white">
+      <div className="bg-[#16203a] px-6 py-6 text-center text-white">
         <span
           aria-hidden
           className={cn(
-            "mx-auto flex size-16 items-center justify-center rounded-full bg-white text-2xl font-bold",
+            "mx-auto flex size-14 items-center justify-center rounded-full bg-white text-xl font-bold shadow-sm",
             style.text,
           )}
         >
           {style.glyph}
         </span>
-        <h2 className="mt-4 text-lg font-semibold">{t(`confirmation.${deal.state}.title`)}</h2>
-        <p className="mt-1 text-sm text-white/85">{t(`confirmation.${deal.state}.detail`)}</p>
+        <h2 className="mt-3 text-lg font-bold">{t(`confirmation.${deal.state}.title`)}</h2>
+        <p className="mt-1 text-xs text-white/80">{t(`confirmation.${deal.state}.detail`)}</p>
       </div>
       {reference ? (
-        <div className="flex items-center justify-between gap-4 bg-surface px-6 py-3 text-sm">
-          <span className="text-xs font-medium uppercase tracking-wide text-ink-faint">
+        <div className="flex items-center justify-between gap-4 bg-surface px-6 py-3 text-xs border-t border-border-subtle/50">
+          <span className="font-semibold uppercase tracking-wide text-ink-muted">
             {t("timeline.paypalReference")}
           </span>
-          <span className="tabular truncate font-medium text-ink-muted">{reference}</span>
+          <span className="tabular truncate font-mono font-medium text-accent">{reference}</span>
         </div>
       ) : null}
     </section>
@@ -207,24 +277,106 @@ function DeliverableCard({ deal }: { deal: DealWithTimeline }) {
 
   return (
     <Card>
-      <CardTitle>{t("deal.deliverableTitle")}</CardTitle>
-      <div className="mt-3 space-y-2">
-        <p className="text-xs text-ink-faint">{t(`deliverable.types.${latest.type}`)}</p>
+      <div className="flex items-center justify-between pb-3 border-b border-border-subtle/50">
+        <CardTitle>{t("deal.deliverableTitle")}</CardTitle>
+        <span className="rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-ink-muted">
+          {t(`deliverable.types.${latest.type}`)}
+        </span>
+      </div>
+
+      <div className="mt-4 space-y-3">
         {isLink ? (
-          <a
-            href={latest.content_ref}
-            target="_blank"
-            rel="noopener noreferrer nofollow"
-            className="block break-all text-sm font-medium text-accent underline"
-          >
-            {latest.content_ref}
-          </a>
+          <div className="p-3.5 rounded-lg bg-surface-muted/60 border border-border-subtle/60 flex items-center justify-between gap-3">
+            <span className="font-mono text-xs text-ink truncate break-all">
+              {latest.content_ref}
+            </span>
+            <a
+              href={latest.content_ref}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-accent-hover transition-colors"
+            >
+              <span>Inspect Link</span>
+              <svg className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
+          </div>
         ) : (
-          <p className="whitespace-pre-line break-words rounded-lg bg-surface-muted p-3 text-sm text-ink">
+          <p className="whitespace-pre-line break-words rounded-lg bg-surface-muted p-3 text-sm text-ink font-mono">
             {latest.content_ref}
           </p>
         )}
-        {latest.note ? <p className="text-sm text-ink-muted">{latest.note}</p> : null}
+
+        {latest.note ? (
+          <div className="text-xs text-ink-muted">
+            <strong className="text-ink font-semibold">Seller note:</strong> {latest.note}
+          </div>
+        ) : null}
+      </div>
+    </Card>
+  );
+}
+
+function PayPalLedgerCard({ deal }: { deal: DealWithTimeline }) {
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const copy = (key: string, val: string) => {
+    navigator.clipboard.writeText(val);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
+
+  const rows = [
+    { key: "order", label: "PayPal Order ID", val: deal.paypal_order_id },
+    { key: "capture", label: "PayPal Capture ID", val: deal.paypal_capture_id },
+    { key: "payout", label: "PayPal Payout Batch", val: deal.payout_batch_id },
+    { key: "refund", label: "PayPal Refund ID", val: deal.refund_id },
+  ].filter((r) => Boolean(r.val));
+
+  return (
+    <Card className="border border-border-subtle/80 bg-surface shadow-sheet">
+      <div className="flex items-center justify-between pb-3 border-b border-border-subtle/50">
+        <CardTitle className="text-sm font-bold flex items-center gap-2">
+          <span>PayPal Ledger References</span>
+        </CardTitle>
+        <span className="rounded-full bg-blue-50 text-blue-700 text-[10px] px-2 py-0.5 font-semibold">
+          Sandbox API
+        </span>
+      </div>
+
+      <div className="mt-3 space-y-2.5">
+        {rows.length === 0 ? (
+          <p className="text-xs text-ink-faint">No PayPal transaction recorded yet.</p>
+        ) : (
+          rows.map((row) => (
+            <div
+              key={row.key}
+              className="flex items-center justify-between gap-2 p-2 rounded-lg bg-surface-muted/50 border border-border-subtle/40 text-xs"
+            >
+              <div className="min-w-0">
+                <span className="text-[10px] uppercase font-semibold text-ink-faint block">
+                  {row.label}
+                </span>
+                <span className="font-mono text-ink truncate block text-[11px]">
+                  {row.val}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => copy(row.key, row.val!)}
+                className="shrink-0 px-2 py-1 rounded bg-surface hover:bg-surface-muted text-[10px] font-medium text-ink-muted border border-border-subtle/60 transition-colors"
+              >
+                {copiedKey === row.key ? "✓ Copied" : "Copy"}
+              </button>
+            </div>
+          ))
+        )}
+
+        <div className="pt-2 border-t border-border-subtle/40 flex items-center justify-between text-xs text-ink-muted">
+          <span>Platform Escrow Fee</span>
+          <span className="font-semibold text-ink">0.00 USD (0%)</span>
+        </div>
       </div>
     </Card>
   );
@@ -240,9 +392,16 @@ function MilestonesReviewCard({
   const t = useTranslations();
   return (
     <Card>
-      <CardTitle>{t("milestones.title")}</CardTitle>
-      <CardSubtitle>{t("milestones.subtitle")}</CardSubtitle>
-      <ul className="mt-5 space-y-4">
+      <div className="flex items-center justify-between pb-3 border-b border-border-subtle/50">
+        <div>
+          <CardTitle>{t("milestones.title")}</CardTitle>
+          <CardSubtitle>{t("milestones.subtitle")}</CardSubtitle>
+        </div>
+        <span className="text-xs font-semibold text-accent bg-accent-soft px-2.5 py-0.5 rounded-full">
+          {deal.milestones.length} Stages
+        </span>
+      </div>
+      <ul className="mt-4 space-y-4">
         {deal.milestones.map((milestone) => (
           <li key={milestone.id}>
             <MilestoneRow deal={deal} milestone={milestone} onResolved={onResolved} />
@@ -262,7 +421,6 @@ function MilestoneRow({
   milestone: Milestone;
   onResolved: () => void;
 }) {
-  const t = useTranslations();
   const resolve = useResolveMilestoneDispute(deal.id, milestone.id);
   const report = milestone.verification_reports[milestone.verification_reports.length - 1];
   const style = statusStyle(milestone.state);
@@ -284,7 +442,6 @@ function MilestoneRow({
         </div>
       </div>
 
-      {/* Only a disputed milestone needs a decision. */}
       {milestone.state === "DISPUTED" ? (
         <div className="border-t border-border-subtle/60 bg-surface p-4">
           {report ? (
@@ -314,9 +471,20 @@ function DisputeCard({ deal, onResolved }: { deal: DealWithTimeline; onResolved:
   const recommendation = useRecommendation(deal.id, true);
 
   return (
-    <Card>
-      <CardTitle>{t("dispute.reviewerTitle")}</CardTitle>
-      <div className="mt-5">
+    <Card className="border-2 border-status-attention/60 bg-surface shadow-md">
+      <div className="flex items-center justify-between pb-3 border-b border-border-subtle/50">
+        <CardTitle className="text-status-attention flex items-center gap-2">
+          <span className="flex size-6 items-center justify-center rounded-full bg-status-attention text-white text-xs font-bold">
+            !
+          </span>
+          <span>{t("dispute.reviewerTitle")}</span>
+        </CardTitle>
+        <span className="text-[10px] font-bold uppercase tracking-wider bg-status-attention-soft text-status-attention px-2 py-0.5 rounded-full">
+          Final Decision
+        </span>
+      </div>
+
+      <div className="mt-4">
         <DecisionPanel
           dealAmount={deal.amount}
           currency={deal.currency}

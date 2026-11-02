@@ -23,7 +23,7 @@ import {
 } from "react";
 
 import { TOKEN_STORAGE_KEY, api, setAuthToken } from "@/lib/api";
-import type { User } from "@/lib/types";
+import type { SignupPayload, User } from "@/lib/types";
 
 const TOKEN_KEY = TOKEN_STORAGE_KEY;
 const USER_KEY = "waseet.user";
@@ -32,6 +32,7 @@ interface SessionValue {
   user: User | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<User>;
+  signUp: (payload: SignupPayload) => Promise<User>;
   signOut: () => void;
 }
 
@@ -119,6 +120,19 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     return result.user;
   }, []);
 
+  const signUp = useCallback(async (payload: SignupPayload) => {
+    const result = await api.signup(payload);
+    setAuthToken(result.access_token);
+    setUser(result.user);
+    try {
+      window.sessionStorage.setItem(TOKEN_KEY, result.access_token);
+      window.sessionStorage.setItem(USER_KEY, JSON.stringify(result.user));
+    } catch {
+      // Storage unavailable: the session still works for this page view.
+    }
+    return result.user;
+  }, []);
+
   const signOut = useCallback(() => {
     setAuthToken(null);
     setUser(null);
@@ -126,8 +140,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<SessionValue>(
-    () => ({ user, isLoading, signIn, signOut }),
-    [user, isLoading, signIn, signOut],
+    () => ({ user, isLoading, signIn, signUp, signOut }),
+    [user, isLoading, signIn, signUp, signOut],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

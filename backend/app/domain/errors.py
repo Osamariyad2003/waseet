@@ -64,3 +64,10 @@ class AIError(DomainError):
 
 class WebhookVerificationFailed(DomainError):
     code = "webhook_verification_failed"
+
+
+class ConflictError(DomainError):
+    """Resource conflict, e.g. an account with this email already exists."""
+
+    code = "conflict"
+

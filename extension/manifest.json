@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Waseet OAuth Checker",
+  "version": "1.0.0",
+  "description": "Test and debug the Waseet PayPal OAuth integration",
+  "permissions": ["activeTab"],
+  "host_permissions": [
+    "http://localhost:8000/*",
+    "http://localhost:3000/*",
+    "http://localhost:3001/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "48": "icon48.png"
+    }
+  },
+  "icons": {
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}

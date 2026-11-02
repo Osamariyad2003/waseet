@@ -35,6 +35,7 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -45,8 +46,6 @@ export default function LoginPage() {
     setFailure(null);
     try {
       const signedIn = await signIn(values.email, values.password);
-      // This platform is for reviewers only. A buyer or seller who signs in
-      // here is turned away and pointed at the escrow app.
       if (signedIn.role !== "reviewer") {
         signOut();
         setFailure(t("login.notReviewer"));
@@ -62,11 +61,23 @@ export default function LoginPage() {
     }
   };
 
+  const fillDemoReviewer = () => {
+    setValue("email", "reviewer@waseet.example.com");
+    setValue("password", "demo-password-123");
+  };
+
   return (
     <div className="mx-auto max-w-sm">
       <Card>
-        <CardTitle>{t("login.title")}</CardTitle>
-        <CardSubtitle>{t("login.subtitle")}</CardSubtitle>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.svg" alt="Waseet" className="mx-auto mb-4 h-14 w-auto" />
+        <div className="text-center">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-semibold text-accent mb-2">
+            Operations Console
+          </span>
+          <CardTitle>{t("login.title")}</CardTitle>
+          <CardSubtitle>{t("login.subtitle")}</CardSubtitle>
+        </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4" noValidate>
           <Field
@@ -93,7 +104,7 @@ export default function LoginPage() {
           </Field>
 
           {failure ? (
-            <p role="alert" className="text-sm text-status-attention">
+            <p role="alert" className="text-sm font-medium text-status-attention">
               {failure}
             </p>
           ) : null}
@@ -108,9 +119,18 @@ export default function LoginPage() {
               t("login.submit")
             )}
           </Button>
+
+          {/* Quick Demo Autofill Pill */}
+          <button
+            type="button"
+            onClick={fillDemoReviewer}
+            className="w-full text-center text-xs text-accent hover:text-accent-hover hover:underline transition-colors pt-1"
+          >
+            ⚡ Click here to fill demo reviewer credentials
+          </button>
         </form>
 
-        <p className="mt-4 text-xs text-ink-faint">{t("login.demoHint")}</p>
+        <p className="mt-4 text-xs text-center text-ink-faint">{t("login.demoHint")}</p>
       </Card>
     </div>
   );

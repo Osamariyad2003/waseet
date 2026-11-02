@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<body>
+<canvas id="c48" width="48" height="48"></canvas>
+<canvas id="c128" width="128" height="128"></canvas>
+<script>
+function draw(canvas, size) {
+  const ctx = canvas.getContext('2d');
+  // Background circle
+  const grad = ctx.createLinearGradient(0, 0, size, size);
+  grad.addColorStop(0, '#3d59a0');
+  grad.addColorStop(1, '#334D8F');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(size/2, size/2, size/2, 0, Math.PI*2);
+  ctx.fill();
+  // W letter
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${size*0.5}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('W', size/2, size/2 + size*0.02);
+  // Checkmark
+  ctx.strokeStyle = '#6ee7b7';
+  ctx.lineWidth = size * 0.06;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(size*0.55, size*0.7);
+  ctx.lineTo(size*0.68, size*0.82);
+  ctx.lineTo(size*0.88, size*0.58);
+  ctx.stroke();
+}
+draw(document.getElementById('c48'), 48);
+draw(document.getElementById('c128'), 128);
+
+// Download links
+['c48','c128'].forEach(id => {
+  const canvas = document.getElementById(id);
+  const a = document.createElement('a');
+  a.download = `icon${canvas.width}.png`;
+  a.href = canvas.toDataURL('image/png');
+  a.textContent = `Download ${a.download}`;
+  a.style.display = 'block';
+  a.style.margin = '8px';
+  document.body.appendChild(a);
+});
+</script>
+</body>
+</html>

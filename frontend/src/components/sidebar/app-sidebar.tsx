@@ -76,7 +76,7 @@ export function AppSidebar({ locale }: { locale: string }) {
       {/* ========================================================= */}
       <aside
         aria-label="Sidebar Navigation"
-        className="hidden md:flex flex-col w-64 shrink-0 border-e border-border-subtle/70 bg-surface min-h-dvh sticky top-0 self-start p-4 z-30"
+        className="hidden md:flex flex-col w-64 shrink-0 border-e border-border-subtle/40 bg-surface min-h-dvh sticky top-0 self-start p-4 z-30"
       >
         {/* Brand Header */}
         <div className="pb-5 pt-1 px-2 border-b border-border-subtle/50">
@@ -113,9 +113,9 @@ export function AppSidebar({ locale }: { locale: string }) {
                 href={href(locale)}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex items-center gap-3.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
+                  "flex items-center gap-3.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150",
                   active
-                    ? "bg-[#e7f5ef] text-[#1b8f63] font-semibold shadow-xs"
+                    ? "bg-accent-soft text-accent font-semibold shadow-xs"
                     : "text-ink-muted hover:text-ink hover:bg-surface-muted",
                 )}
               >
@@ -123,7 +123,7 @@ export function AppSidebar({ locale }: { locale: string }) {
                   filled={active && id === "home"}
                   className={cn(
                     "size-5 shrink-0 transition-colors",
-                    active ? "text-[#1b8f63]" : "text-ink-faint group-hover:text-ink",
+                    active ? "text-accent" : "text-ink-faint group-hover:text-ink",
                   )}
                 />
                 <span className="capitalize">{t(labelKey)}</span>
@@ -183,21 +183,21 @@ export function AppSidebar({ locale }: { locale: string }) {
               href={href(locale)}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex flex-col items-center justify-center gap-1 min-w-16 py-1 px-2 rounded-lg transition-colors focus:outline-none",
-                active ? "text-[#1b8f63]" : "text-ink-faint hover:text-ink",
+                "flex flex-col items-center justify-center gap-1 min-w-16 py-1 px-2 rounded-lg transition-colors duration-150 focus:outline-none",
+                active ? "text-accent" : "text-ink-faint hover:text-ink",
               )}
             >
               <Icon
                 filled={active && id === "home"}
                 className={cn(
                   "size-6 transition-colors",
-                  active ? "text-[#1b8f63]" : "text-ink-faint",
+                  active ? "text-accent" : "text-ink-faint",
                 )}
               />
               <span
                 className={cn(
                   "text-[11px] leading-tight",
-                  active ? "font-semibold text-[#1b8f63]" : "font-normal text-ink-muted",
+                  active ? "font-semibold text-accent" : "font-normal text-ink-muted",
                 )}
               >
                 {t(labelKey)}

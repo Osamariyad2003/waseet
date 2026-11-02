@@ -44,6 +44,14 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1, max_length=256)
 
 
+class SignupRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=256)
+    full_name: str = Field(min_length=1, max_length=200)
+    role: Literal[Role.BUYER, Role.SELLER] = Role.BUYER
+    paypal_account_ref: str | None = Field(default=None, max_length=320)
+
+
 class UserResponse(ORMModel):
     id: uuid.UUID
     email: str

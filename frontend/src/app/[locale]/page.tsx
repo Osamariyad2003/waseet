@@ -39,20 +39,19 @@ export default function LandingPage() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      {/* Top bar */}
-      <header className="sticky top-0 z-30 border-b border-border-subtle/60 bg-surface/90 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-accent/95 backdrop-blur-lg">
         <div className="mx-auto flex w-full max-w-6xl items-center gap-3 px-4 py-3 sm:px-6">
           <Link href={`/${locale}`} className="flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.svg" alt="" className="h-6 w-auto" aria-hidden />
-            <span className="text-lg font-bold tracking-tight text-ink">{t("app.name")}</span>
+            <img src="/logo.svg" alt="" className="h-6 w-auto brightness-0 invert" aria-hidden />
+            <span className="text-lg font-bold tracking-tight text-white">{t("app.name")}</span>
           </Link>
 
           <div className="ms-auto flex items-center gap-3">
             <LanguageToggle />
             <Link
               href={primaryHref}
-              className="inline-flex h-9 items-center rounded-lg bg-accent px-4 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+              className="inline-flex h-9 items-center rounded-lg bg-white px-4 text-sm font-medium text-accent transition-colors hover:bg-white/90"
             >
               {user ? t("landing.openApp") : t("landing.signIn")}
             </Link>
@@ -61,10 +60,9 @@ export default function LandingPage() {
       </header>
 
       <main className="flex-1">
-        {/* Hero */}
-        <section className="relative overflow-hidden">
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-accent-soft/60 to-transparent" />
-          <div className="relative mx-auto w-full max-w-4xl px-4 py-16 text-center sm:px-6 sm:py-24">
+        <section className="relative overflow-hidden bg-gradient-to-b from-accent via-accent to-accent-soft/30">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(255,255,255,0.15),transparent)]" />
+          <div className="relative mx-auto w-full max-w-4xl px-4 py-20 text-center sm:px-6 sm:py-28">
             <motion.div
               custom={0}
               variants={fadeUp}
@@ -72,11 +70,11 @@ export default function LandingPage() {
               animate="show"
               className="mb-6 flex justify-center"
             >
-              <span className="flex size-24 items-center justify-center rounded-full bg-surface shadow-sheet ring-1 ring-border-subtle/60">
+              <span className="flex size-20 items-center justify-center rounded-2xl bg-white/15 shadow-lg ring-1 ring-white/20 backdrop-blur-sm">
                 <LottieAnimation
                   animationData={successAnim}
                   loop
-                  className="size-16"
+                  className="size-12"
                   ariaLabel={t("landing.title")}
                 />
               </span>
@@ -86,9 +84,9 @@ export default function LandingPage() {
               variants={fadeUp}
               initial="hidden"
               animate="show"
-              className="inline-flex items-center gap-2 rounded-full border border-border-subtle/70 bg-surface px-3 py-1 text-xs font-medium text-ink-muted shadow-xs"
+              className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium text-white/90 backdrop-blur-sm"
             >
-              <span className="size-1.5 rounded-full bg-status-paid" />
+              <span className="size-1.5 rounded-full bg-emerald-400" />
               {t("landing.badge")}
             </motion.span>
             <motion.h1
@@ -96,7 +94,7 @@ export default function LandingPage() {
               variants={fadeUp}
               initial="hidden"
               animate="show"
-              className="mt-5 text-balance text-4xl font-bold leading-tight tracking-tight text-ink sm:text-5xl"
+              className="mt-5 text-balance text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl"
             >
               {t("landing.title")}
             </motion.h1>
@@ -105,7 +103,7 @@ export default function LandingPage() {
               variants={fadeUp}
               initial="hidden"
               animate="show"
-              className="mx-auto mt-5 max-w-2xl text-pretty text-lg leading-relaxed text-ink-muted"
+              className="mx-auto mt-5 max-w-2xl text-pretty text-lg leading-relaxed text-white/75"
             >
               {t("landing.subtitle")}
             </motion.p>
@@ -118,13 +116,13 @@ export default function LandingPage() {
             >
               <Link
                 href={primaryHref}
-                className="inline-flex h-12 items-center rounded-xl bg-accent px-6 text-base font-medium text-white shadow-sheet transition-colors hover:bg-accent-hover"
+                className="inline-flex h-12 items-center rounded-xl bg-white px-6 text-base font-semibold text-accent shadow-lg transition-all hover:bg-white/90 hover:shadow-xl"
               >
                 {user ? t("landing.openApp") : t("landing.ctaPrimary")}
               </Link>
               <Link
                 href={`/${locale}/explore`}
-                className="inline-flex h-12 items-center rounded-xl border border-border-subtle bg-surface px-6 text-base font-medium text-ink transition-colors hover:bg-surface-muted"
+                className="inline-flex h-12 items-center rounded-xl border border-white/25 bg-white/10 px-6 text-base font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/20"
               >
                 {t("landing.ctaSecondary")}
               </Link>
@@ -132,38 +130,39 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Trust strip */}
-        <section className="mx-auto w-full max-w-5xl px-4 pb-4 sm:px-6">
+        <section className="mx-auto w-full max-w-5xl px-4 -mt-8 relative z-10 sm:px-6">
           <div className="grid gap-4 sm:grid-cols-3">
             {(["ai", "policy", "sandbox"] as const).map((key) => (
               <div
                 key={key}
-                className="rounded-card border border-border-subtle/60 bg-surface p-5 text-center shadow-sheet"
+                className="rounded-card border border-border-subtle/40 bg-surface p-6 text-center shadow-card-hover"
               >
                 <p className="text-2xl font-bold text-accent">{t(`landing.stats.${key}.value`)}</p>
-                <p className="mt-1 text-sm text-ink-muted">{t(`landing.stats.${key}.label`)}</p>
+                <p className="mt-1.5 text-sm text-ink-muted">{t(`landing.stats.${key}.label`)}</p>
               </div>
             ))}
           </div>
         </section>
 
-        {/* How it works */}
-        <section className="mx-auto w-full max-w-5xl px-4 py-16 sm:px-6">
-          <h2 className="text-center text-2xl font-bold tracking-tight text-ink">
+        <section className="mx-auto w-full max-w-5xl px-4 py-20 sm:px-6">
+          <p className="text-center text-sm font-semibold uppercase tracking-widest text-accent">
+            How it works
+          </p>
+          <h2 className="mt-2 text-center text-2xl font-bold tracking-tight text-ink sm:text-3xl">
             {t("explore.stepsTitle")}
           </h2>
-          <ol className="mt-8 grid gap-4 sm:grid-cols-2">
+          <ol className="mt-10 grid gap-5 sm:grid-cols-2">
             {steps.map((key, index) => (
               <li
                 key={key}
-                className="flex gap-4 rounded-card border border-border-subtle/60 bg-surface p-5 shadow-sheet"
+                className="group flex gap-4 rounded-card border border-border-subtle/40 bg-surface p-6 shadow-sheet transition-all duration-200 hover:shadow-card-hover hover:-translate-y-0.5"
               >
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-sm font-bold text-accent">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-sm font-bold text-white">
                   {index + 1}
                 </span>
                 <div>
                   <h3 className="font-semibold text-ink">{t(`explore.steps.${key}.title`)}</h3>
-                  <p className="mt-1 text-sm leading-relaxed text-ink-muted">
+                  <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">
                     {t(`explore.steps.${key}.body`)}
                   </p>
                 </div>
@@ -172,20 +171,22 @@ export default function LandingPage() {
           </ol>
         </section>
 
-        {/* What makes it safe */}
-        <section className="bg-surface-muted/50 py-16">
+        <section className="bg-gradient-to-b from-surface-muted/50 to-canvas py-20">
           <div className="mx-auto w-full max-w-5xl px-4 sm:px-6">
-            <h2 className="text-center text-2xl font-bold tracking-tight text-ink">
+            <p className="text-center text-sm font-semibold uppercase tracking-widest text-status-paid">
+              Trust & safety
+            </p>
+            <h2 className="mt-2 text-center text-2xl font-bold tracking-tight text-ink sm:text-3xl">
               {t("explore.safeTitle")}
             </h2>
-            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+            <div className="mt-10 grid gap-5 sm:grid-cols-2">
               {pillars.map((key) => (
                 <div
                   key={key}
-                  className="rounded-card border border-border-subtle/60 bg-surface p-5 shadow-sheet"
+                  className="group rounded-card border border-border-subtle/40 bg-surface p-6 shadow-sheet transition-all duration-200 hover:shadow-card-hover hover:-translate-y-0.5"
                 >
                   <h3 className="font-semibold text-ink">{t(`explore.safe.${key}.title`)}</h3>
-                  <p className="mt-1 text-sm leading-relaxed text-ink-muted">
+                  <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">
                     {t(`explore.safe.${key}.body`)}
                   </p>
                 </div>
@@ -194,17 +195,19 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Final CTA */}
-        <section className="mx-auto w-full max-w-4xl px-4 py-16 sm:px-6">
-          <div className="overflow-hidden rounded-card bg-accent px-6 py-12 text-center text-white shadow-sheet">
-            <h2 className="text-2xl font-bold tracking-tight">{t("landing.finalTitle")}</h2>
-            <p className="mx-auto mt-2 max-w-xl text-white/85">{t("landing.finalSubtitle")}</p>
-            <Link
-              href={primaryHref}
-              className="mt-6 inline-flex h-12 items-center rounded-xl bg-white px-6 text-base font-medium text-accent transition-colors hover:bg-white/90"
-            >
-              {user ? t("landing.openApp") : t("landing.ctaPrimary")}
-            </Link>
+        <section className="mx-auto w-full max-w-4xl px-4 py-20 sm:px-6">
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-accent to-accent-bright px-6 py-14 text-center text-white shadow-lg sm:px-12">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_80%_-20%,rgba(255,255,255,0.12),transparent)]" />
+            <div className="relative">
+              <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("landing.finalTitle")}</h2>
+              <p className="mx-auto mt-3 max-w-xl text-white/80">{t("landing.finalSubtitle")}</p>
+              <Link
+                href={primaryHref}
+                className="mt-8 inline-flex h-12 items-center rounded-xl bg-white px-8 text-base font-semibold text-accent shadow-lg transition-all hover:bg-white/90 hover:shadow-xl"
+              >
+                {user ? t("landing.openApp") : t("landing.ctaPrimary")}
+              </Link>
+            </div>
           </div>
         </section>
       </main>
@@ -230,8 +233,8 @@ function LanguageToggle() {
           className={cn(
             "rounded px-2 py-1 text-xs font-medium uppercase transition-colors",
             locale === option
-              ? "bg-accent text-white"
-              : "text-ink-muted hover:bg-surface-muted hover:text-ink",
+              ? "bg-white/20 text-white"
+              : "text-white/60 hover:bg-white/10 hover:text-white",
           )}
         >
           {option}

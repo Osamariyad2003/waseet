@@ -54,8 +54,9 @@ export default function DealsPage() {
           {user.role === "buyer" ? (
             <Link
               href={`/${locale}/deals/new`}
-              className="inline-flex h-9 items-center rounded-lg bg-accent px-4 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-accent px-4 text-sm font-medium text-white shadow-sm transition-all hover:bg-accent-hover hover:shadow-md"
             >
+              <svg viewBox="0 0 16 16" fill="currentColor" className="size-3.5"><path d="M8 2a.75.75 0 0 1 .75.75v4.5h4.5a.75.75 0 0 1 0 1.5h-4.5v4.5a.75.75 0 0 1-1.5 0v-4.5h-4.5a.75.75 0 0 1 0-1.5h4.5v-4.5A.75.75 0 0 1 8 2Z" /></svg>
               {t("deals.newDeal")}
             </Link>
           ) : null}
@@ -85,14 +86,14 @@ export default function DealsPage() {
         // A sheet of rows, after the design file's "Latest payments" list: a
         // status glyph in a soft circle on the lead, title + time, then the
         // amount and state trailing.
-        <ul className="divide-y divide-border-subtle/70 overflow-hidden rounded-card border border-border-subtle/60 bg-surface shadow-sheet">
+        <ul className="divide-y divide-border-subtle/50 overflow-hidden rounded-card border border-border-subtle/40 bg-surface shadow-sheet">
           {data.map((deal) => {
             const style = statusStyle(deal.state);
             return (
               <li key={deal.id}>
                 <Link
                   href={`/${locale}/deals/${deal.id}`}
-                  className="flex items-center gap-3 p-4 transition-colors hover:bg-surface-muted sm:gap-4 sm:p-5"
+                  className="flex items-center gap-3 p-4 transition-all duration-150 hover:bg-accent-soft/40 sm:gap-4 sm:p-5"
                 >
                   <span
                     aria-hidden

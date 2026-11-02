@@ -36,6 +36,14 @@ export interface User {
   role: Role;
 }
 
+export interface SignupPayload {
+  email: string;
+  password: string;
+  full_name: string;
+  role: "buyer" | "seller";
+  paypal_account_ref?: string | null;
+}
+
 export interface LoginResponse {
   access_token: string;
   token_type: "bearer";

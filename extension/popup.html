@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Waseet OAuth Checker</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 420px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f6fa;
+      color: #1a1a2e;
+      font-size: 13px;
+    }
+    .header {
+      background: linear-gradient(135deg, #3d59a0, #334D8F);
+      color: #fff;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header h1 { font-size: 16px; font-weight: 600; }
+    .header span { font-size: 11px; opacity: 0.8; }
+
+    .section {
+      background: #fff;
+      margin: 8px;
+      border-radius: 8px;
+      border: 1px solid #e2e5f0;
+      overflow: hidden;
+    }
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #6b7280;
+      padding: 10px 12px 6px;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-top: 1px solid #f0f1f5;
+    }
+    .status-row:first-of-type { border-top: none; }
+    .status-label { font-weight: 500; }
+    .status-badge {
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-ok { background: #d1fae5; color: #065f46; }
+    .badge-fail { background: #fee2e2; color: #991b1b; }
+    .badge-wait { background: #fef3c7; color: #92400e; }
+    .badge-skip { background: #e5e7eb; color: #4b5563; }
+
+    .btn {
+      display: block;
+      width: calc(100% - 16px);
+      margin: 8px;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: #3d59a0; color: #fff; }
+    .btn-paypal { background: #ffc439; color: #253b80; }
+    .btn-admin { background: #334D8F; color: #fff; }
+
+    .log-box {
+      margin: 0 8px 8px;
+      background: #1a1a2e;
+      border-radius: 6px;
+      padding: 10px;
+      max-height: 180px;
+      overflow-y: auto;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 11px;
+      color: #a5b4fc;
+    }
+    .log-line { padding: 1px 0; white-space: pre-wrap; word-break: break-all; }
+    .log-ok { color: #6ee7b7; }
+    .log-err { color: #fca5a5; }
+    .log-info { color: #93c5fd; }
+    .log-dim { color: #6b7280; }
+
+    .detail-row {
+      padding: 6px 12px;
+      border-top: 1px solid #f0f1f5;
+      font-size: 12px;
+      word-break: break-all;
+    }
+    .detail-label { color: #6b7280; font-size: 11px; }
+    .detail-value { color: #1a1a2e; margin-top: 2px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>Waseet OAuth Checker</h1>
+      <span>PayPal sandbox integration tester</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Service Health</div>
+    <div class="status-row">
+      <span class="status-label">Backend :8000</span>
+      <span id="s-backend" class="status-badge badge-wait">checking...</span>
+    </div>
+    <div class="status-row">
+      <span class="status-label">Frontend :3000</span>
+      <span id="s-frontend" class="status-badge badge-wait">checking...</span>
+    </div>
+    <div class="status-row">
+      <span class="status-label">Admin :3001</span>
+      <span id="s-admin" class="status-badge badge-wait">checking...</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">PayPal OAuth</div>
+    <div class="status-row">
+      <span class="status-label">PayPal configured</span>
+      <span id="s-paypal" class="status-badge badge-wait">checking...</span>
+    </div>
+    <div class="status-row">
+      <span class="status-label">Redirect endpoint</span>
+      <span id="s-redirect" class="status-badge badge-wait">checking...</span>
+    </div>
+    <div class="status-row">
+      <span class="status-label">Callback endpoint</span>
+      <span id="s-callback" class="status-badge badge-wait">checking...</span>
+    </div>
+  </div>
+
+  <div id="url-details" class="section" style="display:none;">
+    <div class="section-title">Authorize URL</div>
+    <div class="detail-row">
+      <div class="detail-label">client_id</div>
+      <div class="detail-value" id="d-client-id">—</div>
+    </div>
+    <div class="detail-row">
+      <div class="detail-label">redirect_uri</div>
+      <div class="detail-value" id="d-redirect-uri">—</div>
+    </div>
+    <div class="detail-row">
+      <div class="detail-label">scope</div>
+      <div class="detail-value" id="d-scope">—</div>
+    </div>
+  </div>
+
+  <button id="btn-run" class="btn btn-primary" disabled>Run Full Check</button>
+  <button id="btn-escrow" class="btn btn-paypal">Test Escrow OAuth Flow</button>
+  <button id="btn-admin-flow" class="btn btn-admin">Test Admin OAuth Flow</button>
+
+  <div class="section-title" style="padding: 6px 12px 4px;">Log</div>
+  <div id="log" class="log-box">
+    <div class="log-line log-dim">Ready. Click "Run Full Check" to start.</div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

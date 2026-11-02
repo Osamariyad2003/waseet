@@ -58,8 +58,12 @@
     "submitting": "Signing in…",
     "failed": "The email or password is incorrect.",
     "unreachable": "Could not reach the Waseet server. Is the backend running?",
-    "demoHint": "Demo accounts are listed in the README.",
-    "reviewerElsewhere": "Reviewers use the admin app, not this one."
+    "demoHint": "Sandbox mode — use the quick-fill buttons to try demo accounts.",
+    "reviewerElsewhere": "Reviewers use the admin app, not this one.",
+    "noAccount": "Don't have an account?",
+    "signUp": "Create an account",
+    "demoBuyer": "Demo Buyer",
+    "demoSeller": "Demo Seller"
   },
   "deals": {
     "title": "Your deals",
@@ -567,5 +571,31 @@
     "delist": "Delist",
     "delisted": "Delisted",
     "formError": "Add a title and a valid price (e.g. 250.00)."
+  },
+  "signup": {
+    "title": "Create an account",
+    "subtitle": "Join Waseet — safe escrow transactions on PayPal.",
+    "fullName": "Full name",
+    "fullNamePlaceholder": "e.g. Alex Morgan",
+    "email": "Email address",
+    "role": "Account type",
+    "roleBuyer": "Buyer",
+    "roleBuyerDesc": "Create and fund deals securely",
+    "roleSeller": "Seller",
+    "roleSellerDesc": "Deliver work and receive payouts",
+    "paypalRef": "PayPal sandbox email (optional)",
+    "paypalRefPlaceholder": "e.g. sb-user@personal.example.com",
+    "paypalRefHint": "Your PayPal personal sandbox account used for escrow transactions.",
+    "password": "Password",
+    "confirmPassword": "Confirm password",
+    "passwordMin": "Password must be at least 8 characters.",
+    "passwordMismatch": "Passwords do not match.",
+    "submit": "Create account",
+    "submitting": "Creating account…",
+    "alreadyHaveAccount": "Already have an account?",
+    "signIn": "Sign in",
+    "conflict": "An account with this email already exists. Please sign in.",
+    "failed": "Could not create account. Please check your information and try again.",
+    "unreachable": "Could not reach the Waseet server. Is the backend running?"
   }
 }

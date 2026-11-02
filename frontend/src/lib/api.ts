@@ -26,6 +26,7 @@ import type {
   ExploreResponse,
   HomeSummary,
   LoginResponse,
+  SignupPayload,
   MediationRecommendation,
   MilestoneVerificationResult,
   Offer,
@@ -165,6 +166,9 @@ function safeParse(text: string): unknown {
 
 export const api = {
   // --- auth ---------------------------------------------------------------
+  signup: (payload: SignupPayload) =>
+    request<LoginResponse>("/auth/signup", { method: "POST", body: payload }),
+
   login: (email: string, password: string) =>
     request<LoginResponse>("/auth/login", { method: "POST", body: { email, password } }),
 

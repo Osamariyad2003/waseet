@@ -186,6 +186,22 @@ reviewer reads the AI's recommendation and refunds the buyer.
 **Audit** — open either timeline: every state change, the AI's reasoning, the
 confidence, and the PayPal reference ids.
 
+### Visual walkthrough
+
+| 1. Create Deal & Terms | 2. Fund Escrow on PayPal |
+|:---:|:---:|
+| <img src="screenshots/25-new-deal-form-milestones.png" width="450" /> | <img src="screenshots/26-deal-funded-escrow-summary.png" width="450" /> |
+
+| 3. Agreed Terms & Fingerprint | 4. AI Verification in Action |
+|:---:|:---:|
+| <img src="screenshots/27-agreed-terms-checklist-fingerprint.png" width="450" /> | <img src="screenshots/28-deliverable-ai-verifying.png" width="450" /> |
+
+| 5. Immutable Audit Trail & PayPal IDs |
+|:---:|
+| <img src="screenshots/29-deal-history-paypal-audit.png" width="900" /> |
+
+*See [`screenshots/README.md`](screenshots/README.md) for the complete screenshot catalog.*
+
 ---
 
 ## Architecture

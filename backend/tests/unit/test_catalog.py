@@ -6,7 +6,7 @@ from decimal import Decimal
 
 import pytest
 
-from app.integrations.catalog.channel3 import _best_offer, _to_product
+from app.integrations.catalog.channel3 import _best_offer, _to_catalog_product as _to_product
 from app.integrations.catalog.stub import StubCatalogGateway
 
 

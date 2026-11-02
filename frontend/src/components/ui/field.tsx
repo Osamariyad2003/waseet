@@ -48,8 +48,10 @@ export function Field({ label, hint, error, children }: FieldProps) {
 
 const control =
   "w-full rounded-[--radius-control] border border-border-subtle bg-surface px-3.5 py-3 " +
-  "text-sm text-ink transition-colors placeholder:text-ink-faint " +
-  "focus:border-accent aria-[invalid=true]:border-status-attention";
+  "text-sm text-ink transition-all duration-150 placeholder:text-ink-faint " +
+  "hover:border-ink-faint/50 " +
+  "focus:border-accent focus:ring-2 focus:ring-accent/10 " +
+  "aria-[invalid=true]:border-status-attention aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-status-attention/10";
 
 export function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input className={cn(control, className)} {...props} />;
